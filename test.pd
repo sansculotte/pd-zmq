@@ -1,0 +1,6 @@
+#N canvas 815 320 450 300 10;
+#X obj 76 133 zmq/zmq;
+#X msg 81 83 about;
+#X msg 134 89 version;
+#X connect 1 0 0 0;
+#X connect 2 0 0 0;
