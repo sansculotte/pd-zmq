@@ -3,7 +3,7 @@ CFLAGS=-Wall -I../../src/ -O6 -funroll-loops -fomit-frame-pointer -rdynamic -sha
 LIBS=-lzmq -lc
 
 zmq.pd_linux:
-	$(CC) $(CFLAGS) zmq.c $(LIBS) -o zmq.pd_linux
+	$(CC) $(CFLAGS) zmq.c $(LIBS) -o zmq.pd_linux -L/usr/local/lib 
 
 clean:
 	rm zmq.pd_linux

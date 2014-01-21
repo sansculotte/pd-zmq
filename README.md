@@ -4,5 +4,5 @@
 ZeroMQ is a barebone message Queue system with variable architecture, see:
 http://zeromq.org
 
-at the moment this is linux only. sorry. working on expansion.
-
+version 0.0.0 WORK IN PROGRESS!
+at the moment this is very thin and linux only. sorry.
