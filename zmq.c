@@ -32,9 +32,9 @@ void* zmq_new(void)
    post(v);
 
 #if ZMQ_VERSION_MAJOR > 2
-   x->zmq_context = zmq_init(1);
-#else
    x->zmq_context = zmq_ctx_new();
+#else
+   x->zmq_context = zmq_init(1);
 #endif
    if(x->zmq_context) {
       post("ØMQ context initialized");
@@ -51,9 +51,9 @@ void* zmq_new(void)
 void zmq_destroy(t_zmq *x) {
    if(x->zmq_context) {
 #if ZMQ_VERSION_MAJOR > 2
-      zmq_term(x->zmq_context);
-#else
       zmq_ctx_destroy(x->zmq_context);
+#else
+      zmq_term(x->zmq_context);
 #endif
       post("ØMQ context destroyed");
    }
@@ -63,7 +63,7 @@ void zmq_destroy(t_zmq *x) {
 // http://api.zeromq.org
 void _zmq_about(t_zmq *x)
 {
-   post("ØMQ external u@sansculotte.net 2014\nhttp://api.zeromq.org\n");
+   post("ØMQ external u@sansculotte.net 2014\nhttp://api.zeromq.org");
 }
 
 void _zmq_version(void) {
@@ -105,17 +105,12 @@ void _zmq_create_socket(t_zmq *x, t_symbol *s) {
    x->zmq_socket = zmq_socket(x->zmq_context, type);
 }
 
-void _zmq_msg_tick(t_zmq *x) {
-   char rnd[32];
+void _zmq_msg_tick(t_zmq *x) {(t_symbol*)&out
+   // output messages shere later
+   char buf[MAXPDSTRING];
 //   int rnd;
-   t_atom out;
-   t_atom *a = &out;
-//   t_atom* s = &out;
-   sprintf (rnd, "%d", rand()%23);
-//   rnd = rand()%23;
-   SETSYMBOL(a, gensym(rnd));
-   outlet_symbol(x->s_out, (t_symbol*)&out);
-//   outlet_float(x->s_out, rand());
+   sprintf (buf, "%i", rand()%23);
+   outlet_symbol(x->s_out, gensym(buf));
    clock_delay(x->x_clock, 1);
 }
 
@@ -130,7 +125,7 @@ void zmq_bang(t_zmq *x) {
 // see: http://api.zeromq.org/3-2:zmq-bind
 void _zmq_bind(t_zmq *x, t_symbol *s) {
    if(! x->zmq_socket) {
-      error("create socket first");
+      error("create a socket first");
       return;
    } 
 //   char* endpoint = &s->s_name;
