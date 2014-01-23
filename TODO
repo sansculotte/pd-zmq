@@ -1,0 +1,16 @@
+FIRST
+* proper message handling
+** multipart
+** pd types conversion
+* condition checking
+** what client types can be initiated on what socket types etc
+* proper architecture workflows
+** multiconnects
+** specific disconnects
+* status information and control
+** properly use getsockopt
+* read docs, examples, other lang bindingegs
+
+LATER
+* implement streams to send audio blocks
+* take care of different zmq versions

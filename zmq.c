@@ -22,6 +22,7 @@ typedef struct _zmq {
 
 void _zmq_error(int errno);
 void _zmq_msg_tick(t_zmq *x); 
+void _zmq_close(t_zmq *x); 
 
 void* zmq_new(void)
 {
@@ -49,6 +50,9 @@ void* zmq_new(void)
 }
 
 void zmq_destroy(t_zmq *x) {
+   if(x->zmq_socket) {
+      zmq_close(x->zmq_socket);
+   }
    if(x->zmq_context) {
 #if ZMQ_VERSION_MAJOR > 2
       zmq_ctx_destroy(x->zmq_context);
@@ -77,6 +81,8 @@ void _zmq_version(void) {
 // must match socket type
 // see: http://api.zeromq.org/3-2:zmq-socket
 void _zmq_create_socket(t_zmq *x, t_symbol *s) {
+   // close any existing socket
+   _zmq_close(x);
    // push-pull/req-rep are the first pattern to implement for a POC
    int type;
    if(strcmp(s->s_name, "push") == 0) {
@@ -105,12 +111,20 @@ void _zmq_create_socket(t_zmq *x, t_symbol *s) {
    x->zmq_socket = zmq_socket(x->zmq_context, type);
 }
 
-void _zmq_msg_tick(t_zmq *x) {(t_symbol*)&out
+void _zmq_msg_tick(t_zmq *x) {
    // output messages shere later
+   int r, err;
    char buf[MAXPDSTRING];
 //   int rnd;
-   sprintf (buf, "%i", rand()%23);
-   outlet_symbol(x->s_out, gensym(buf));
+//   sprintf (buf, "%i", rand()%23);
+   r=zmq_recv (x->zmq_socket, buf, MAXPDSTRING, ZMQ_DONTWAIT);
+   if(r>0) {
+      outlet_symbol(x->s_out, gensym(buf));
+   }
+   if((err=zmq_errno())!=EAGAIN) {
+      _zmq_error(err);
+   }
+//   outlet_symbol(x->s_out, gensym(buf));
    clock_delay(x->x_clock, 1);
 }
 
@@ -128,6 +142,7 @@ void _zmq_bind(t_zmq *x, t_symbol *s) {
       error("create a socket first");
       return;
    } 
+//   _zmq_close(x);
 //   char* endpoint = &s->s_name;
    int r = zmq_bind(x->zmq_socket, s->s_name);
    if(r==0) {
@@ -135,7 +150,7 @@ void _zmq_bind(t_zmq *x, t_symbol *s) {
       // setup message listener
       _zmq_msg_tick(x);
    }
-   else _zmq_error(r);
+   else _zmq_error(zmq_errno());
 }
 
 // create an outgoing connection, args are same as for bind
@@ -144,10 +159,45 @@ void _zmq_connect(t_zmq *x, t_symbol *s) {
       error("create socket first");
       return;
    } 
+//   _zmq_close(x);
 //   char* endpoint = &s->s_name;
-   int r = zmq_bind(x->zmq_socket, s->s_name);
+   int r = zmq_connect(x->zmq_socket, s->s_name);
    if(r==0) post("socket connected\n");
-   else _zmq_error(r);
+   else _zmq_error(zmq_errno());
+}
+
+// close socket
+void _zmq_close(t_zmq *x) {
+   int r;
+   if(x->zmq_socket) {
+      r=zmq_close(x->zmq_socket);
+      if(r==0) {
+         post("socket closed");
+      } else {
+         _zmq_error(zmq_errno());
+      }
+   }
+}
+
+void _zmq_send(t_zmq *x, t_symbol *s) {
+   int r;
+   char buf[MAXPDSTRING];
+   int msg_len = strlen(s->s_name);
+   if (msg_len==0) return;
+   if ( ! x->zmq_socket) {
+      error("create and connect socket before sending");
+      return;
+   }
+   r=zmq_send (x->zmq_socket, s->s_name, msg_len, ZMQ_DONTWAIT);
+   if(r==-1) {
+      _zmq_error(zmq_errno);
+      return;
+   }
+   // do nonblocking mode here or listen for messages in a different loop
+   r=zmq_recv (x->zmq_socket, buf, MAXPDSTRING, 0);
+   if(r>0) {
+      outlet_symbol(x->s_out, gensym(buf));
+   }
 }
 
 // create object
@@ -165,10 +215,14 @@ void zmq_setup(void)
    class_addmethod(zmq_class, (t_method)_zmq_create_socket, gensym("socket"), A_SYMBOL, 0);
    class_addmethod(zmq_class, (t_method)_zmq_bind, gensym("bind"), A_SYMBOL, 0);
    class_addmethod(zmq_class, (t_method)_zmq_connect, gensym("connect"), A_SYMBOL, 0);
+   class_addmethod(zmq_class, (t_method)_zmq_close, gensym("close"), 0);
+   class_addmethod(zmq_class, (t_method)_zmq_send, gensym("send"), A_SYMBOL, 0);
 }
 
 // error translator
 void _zmq_error(int errno) {
+   error(zmq_strerror(errno));
+   /*
    switch(errno) {
       case EINVAL:
          error("The endpoint supplied is invalid."); break;
@@ -184,7 +238,8 @@ void _zmq_error(int errno) {
          error("The provided socket was invalid."); break;
       default:
          error("error not caught or all good");
-   } 
+   }
+   */
 }
 
 

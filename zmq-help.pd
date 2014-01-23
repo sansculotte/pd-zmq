@@ -1,4 +1,4 @@
-#N canvas 801 313 450 300 10;
+#N canvas 797 311 450 300 10;
 #X obj 71 240 zmq/zmq;
 #X msg 71 210 about;
 #X msg 114 210 version;
@@ -6,13 +6,15 @@
 #X msg 13 134 socket pull;
 #X msg 35 151 socket request;
 #X msg 52 168 socket reply;
-#X msg 119 94 connect tcp://127.0.0.1:3000;
 #X msg 134 125 bind tcp://127.0.0.1:3000;
 #X floatatom 71 267 8 0 0 0 - - -, f 8;
 #X msg 57 53 bang;
-#X symbolatom 141 268 10 0 0 0 - - -, f 10;
-#X connect 0 0 9 0;
-#X connect 0 0 11 0;
+#X symbolatom 141 268 30 0 0 0 - - -, f 30;
+#X msg -7 40 close;
+#X msg 119 94 connect tcp://127.0.0.1:6001;
+#X msg 116 36 send cam-2::sendPi;
+#X connect 0 0 8 0;
+#X connect 0 0 10 0;
 #X connect 1 0 0 0;
 #X connect 2 0 0 0;
 #X connect 3 0 0 0;
@@ -20,5 +22,7 @@
 #X connect 5 0 0 0;
 #X connect 6 0 0 0;
 #X connect 7 0 0 0;
-#X connect 8 0 0 0;
-#X connect 10 0 0 0;
+#X connect 9 0 0 0;
+#X connect 11 0 0 0;
+#X connect 12 0 0 0;
+#X connect 13 0 0 0;
