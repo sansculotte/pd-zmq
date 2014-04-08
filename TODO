@@ -1,16 +1,21 @@
 FIRST
+* make close not crash
+* go through: https://github.com/imatix/zguide learn how zmq works and while at it, rip out all relevant code-blocks ;)
 * proper message handling
-** multipart
+** multipart messages
 ** pd types conversion
 * condition checking
 ** what client types can be initiated on what socket types etc
+** distinguish between PAIR and non-PAIR sockets
 * proper architecture workflows
-** multiconnects
+** multiconnects/multicast (pgm?)
 ** specific disconnects
 * status information and control
 ** properly use getsockopt
-* read docs, examples, other lang bindingegs
+* read docs, examples, other lang bindings
 
 LATER
+* special purpose objects [zmf_router], [zmf_pair], ...
 * implement streams to send audio blocks
+** binary messages
 * take care of different zmq versions

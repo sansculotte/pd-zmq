@@ -1,0 +1,14 @@
+#N canvas 590 147 450 300 10;
+#X obj 99 147 zmq/zmq;
+#X msg 87 56 socket subscribe;
+#X msg 142 90 connect tcp://127.0.0.1:5555;
+#X msg 223 129 subscribe time;
+#X obj 99 196 print;
+#X msg 213 190 close;
+#X msg 235 150 unsubscribe time;
+#X connect 0 0 4 0;
+#X connect 1 0 0 0;
+#X connect 2 0 0 0;
+#X connect 3 0 0 0;
+#X connect 5 0 0 0;
+#X connect 6 0 0 0;

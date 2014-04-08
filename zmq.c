@@ -49,6 +49,10 @@ void* zmq_new(void)
    return (void *)x;
 }
 
+void zmq_free(t_zmq *x) {
+   clock_free(x->x_clock);
+}
+
 void zmq_destroy(t_zmq *x) {
    if(x->zmq_socket) {
       zmq_close(x->zmq_socket);
@@ -118,6 +122,7 @@ void _zmq_msg_tick(t_zmq *x) {
 //   int rnd;
 //   sprintf (buf, "%i", rand()%23);
    r=zmq_recv (x->zmq_socket, buf, MAXPDSTRING, ZMQ_DONTWAIT);
+   buf[r] = 0;
    if(r>0) {
       outlet_symbol(x->s_out, gensym(buf));
    }
@@ -158,7 +163,7 @@ void _zmq_connect(t_zmq *x, t_symbol *s) {
    if(! x->zmq_socket) {
       error("create socket first");
       return;
-   } 
+   }
 //   _zmq_close(x);
 //   char* endpoint = &s->s_name;
    int r = zmq_connect(x->zmq_socket, s->s_name);
@@ -171,6 +176,7 @@ void _zmq_close(t_zmq *x) {
    int r;
    if(x->zmq_socket) {
       r=zmq_close(x->zmq_socket);
+      clock_unset(x->x_clock);
       if(r==0) {
          post("socket closed");
       } else {
@@ -189,7 +195,7 @@ void _zmq_send(t_zmq *x, t_symbol *s) {
       return;
    }
    r=zmq_send (x->zmq_socket, s->s_name, msg_len, ZMQ_DONTWAIT);
-   if(r==-1) {
+   if(r == -1) {
       _zmq_error(zmq_errno);
       return;
    }
@@ -198,6 +204,18 @@ void _zmq_send(t_zmq *x, t_symbol *s) {
    if(r>0) {
       outlet_symbol(x->s_out, gensym(buf));
    }
+}
+
+// subscribe and unsubscribe for pub/sub pattern
+void _zmq_subscribe(t_zmq *x, t_symbol *s) {
+   zmq_setsockopt(x->zmq_socket, ZMQ_SUBSCRIBE, s->s_name, strlen(s->s_name));
+   post("subscribe to %s", s->s_name);
+   _zmq_msg_tick(x);
+}
+
+void _zmq_unsubscribe(t_zmq *x, t_symbol *s) {
+   zmq_setsockopt(x, ZMQ_UNSUBSCRIBE, s, strlen(s));
+   post("unsubscribe from %s", s->s_name);
 }
 
 // create object
@@ -217,6 +235,8 @@ void zmq_setup(void)
    class_addmethod(zmq_class, (t_method)_zmq_connect, gensym("connect"), A_SYMBOL, 0);
    class_addmethod(zmq_class, (t_method)_zmq_close, gensym("close"), 0);
    class_addmethod(zmq_class, (t_method)_zmq_send, gensym("send"), A_SYMBOL, 0);
+   class_addmethod(zmq_class, (t_method)_zmq_subscribe, gensym("subscribe"), A_SYMBOL, 0);
+   class_addmethod(zmq_class, (t_method)_zmq_unsubscribe, gensym("unsubscribe"), A_SYMBOL, 0);
 }
 
 // error translator
