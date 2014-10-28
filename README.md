@@ -6,7 +6,7 @@ http://zeromq.org
 Puredata is a visual multimedia programming environment, see:
 http://puredata.info
 
-version 0.0.1 WORK IN PROGRESS!
+version 0.0.2 WORK IN PROGRESS!
 at the moment functionality is thin, flakey and all that on linux only. sorry.
 
 what it can do:
