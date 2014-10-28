@@ -72,15 +72,19 @@ void zmq_destroy(t_zmq *x) {
    clock_free(x->x_clock);
    _zmq_stop_receiver(x);
    if(x->zmq_socket) {
-      zmq_close(x->zmq_socket);
+      int linger = 0;
+      int len = sizeof (linger);
+      zmq_setsockopt(x->zmq_socket, ZMQ_LINGER, &linger, &len);
+      int cr=zmq_close(x->zmq_socket);
+      if(cr==0) post("socket closed");
    }
    if(x->zmq_context) {
 #if ZMQ_VERSION_MAJOR > 2
-      zmq_ctx_destroy(x->zmq_context);
+      int r=zmq_ctx_destroy(x->zmq_context);
 #else
-      zmq_term(x->zmq_context);
+      int r=zmq_term(x->zmq_context);
 #endif
-      post("ØMQ context destroyed");
+      if(r==0) post("ØMQ context destroyed");
    }
 }
 
