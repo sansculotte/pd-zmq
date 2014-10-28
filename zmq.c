@@ -1,14 +1,22 @@
-/////////////////////////////////////////////////////////////////////////////
-// 
-// zeroMQ bindings for puredata
-//
-// u@sansculotte.net 2014
-//
+/*****************************************************************
+ *
+ * ZeroMQ as puredata external
+ *
+ * u@sansculotte.net 2014
+ * version 0.0.2
+ *
+ */
 
 #include "m_pd.h"
 #include <string.h>
 #include <stdlib.h>
 #include <zmq.h>
+
+#if (defined (WIN32))
+# define randof(num) (int) ((float) (num) * rand () / (RAND_MAX + 1.0))
+#else
+# define randof(num) (int) ((float) (num) * random () / (RAND_MAX + 1.0))
+#endif
 
 static t_class *zmq_class;
 
@@ -18,12 +26,19 @@ typedef struct _zmq {
    void     *zmq_socket;
    t_clock  *x_clock;
    t_outlet *s_out;
+   int      run_receiver;
 } t_zmq;
 
 void _zmq_error(int errno);
-void _zmq_msg_tick(t_zmq *x); 
-void _zmq_close(t_zmq *x); 
+void _zmq_msg_tick(t_zmq *x);
+void _zmq_close(t_zmq *x);
+void _zmq_start_receiver(t_zmq *x);
+void _zmq_stop_receiver(t_zmq *x);
+static void _s_set_identity (t_zmq *x);
 
+/**
+ * constructor
+ */
 void* zmq_new(void)
 {
    t_zmq *x = (t_zmq *)pd_new(zmq_class);
@@ -49,11 +64,12 @@ void* zmq_new(void)
    return (void *)x;
 }
 
-void zmq_free(t_zmq *x) {
-   clock_free(x->x_clock);
-}
-
+/**
+ * destructor
+ */
 void zmq_destroy(t_zmq *x) {
+   clock_free(x->x_clock);
+   _zmq_stop_receiver(x);
    if(x->zmq_socket) {
       zmq_close(x->zmq_socket);
    }
@@ -67,13 +83,18 @@ void zmq_destroy(t_zmq *x) {
    }
 }
 
-// ZMQ methods
-// http://api.zeromq.org
+/**
+ * ZMQ methods
+ * http://api.zeromq.org
+ */
 void _zmq_about(t_zmq *x)
 {
    post("ØMQ external u@sansculotte.net 2014\nhttp://api.zeromq.org");
 }
 
+/**
+ * get ZMQ library version
+ */
 void _zmq_version(void) {
    int major, minor, patch;
    char verstr[64];
@@ -82,8 +103,10 @@ void _zmq_version(void) {
    post(verstr);
 }
 
-// must match socket type
-// see: http://api.zeromq.org/3-2:zmq-socket
+/**
+ * must match socket type
+ * see: http://api.zeromq.org/3-2:zmq-socket
+ */
 void _zmq_create_socket(t_zmq *x, t_symbol *s) {
    // close any existing socket
    _zmq_close(x);
@@ -91,7 +114,7 @@ void _zmq_create_socket(t_zmq *x, t_symbol *s) {
    int type;
    if(strcmp(s->s_name, "push") == 0) {
       type = ZMQ_PUSH;
-   } else 
+   } else
    if(strcmp(s->s_name, "pull") == 0) {
       type = ZMQ_PULL;
    } else
@@ -113,23 +136,43 @@ void _zmq_create_socket(t_zmq *x, t_symbol *s) {
    }
 
    x->zmq_socket = zmq_socket(x->zmq_context, type);
+   _s_set_identity(x);
+
 }
 
+/**
+ * start/stop the receiver loop
+ */
+void _zmq_start_receiver(t_zmq *x) {
+   x->run_receiver = 1;
+   _zmq_msg_tick(x);
+}
+void _zmq_stop_receiver(t_zmq *x) {
+   x->run_receiver = 0;
+}
+
+/**
+ * the receiver loop
+ */
 void _zmq_msg_tick(t_zmq *x) {
-   // output messages shere later
+
+   if (! x->run_receiver) return;
+
    int r, err;
    char buf[MAXPDSTRING];
-//   int rnd;
-//   sprintf (buf, "%i", rand()%23);
+
    r=zmq_recv (x->zmq_socket, buf, MAXPDSTRING, ZMQ_DONTWAIT);
-   buf[r] = 0;
-   if(r>0) {
-      outlet_symbol(x->s_out, gensym(buf));
+   if(r != -1) {
+       if (r > MAXPDSTRING) r = MAXPDSTRING;
+       buf[r] = 0; // terminate string
+
+       if(r>0) {
+          outlet_symbol(x->s_out, gensym(buf));
+       }
+       if((err=zmq_errno())!=EAGAIN) {
+          _zmq_error(err);
+       }
    }
-   if((err=zmq_errno())!=EAGAIN) {
-      _zmq_error(err);
-   }
-//   outlet_symbol(x->s_out, gensym(buf));
    clock_delay(x->x_clock, 1);
 }
 
@@ -139,9 +182,11 @@ void zmq_bang(t_zmq *x) {
 //   outlet_float(x->s_out, rand());
 }
 
-// binds a listening socket
-// The endpoint is a string consisting of a transport :// followed by an address 
-// see: http://api.zeromq.org/3-2:zmq-bind
+/**
+ * bind a socket
+ * endpoint is a string consisting of <transport>://<address>
+ * see: http://api.zeromq.org/3-2:zmq-bind
+ */
 void _zmq_bind(t_zmq *x, t_symbol *s) {
    if(! x->zmq_socket) {
       error("create a socket first");
@@ -153,12 +198,14 @@ void _zmq_bind(t_zmq *x, t_symbol *s) {
    if(r==0) {
       post("socket bound\n");
       // setup message listener
-      _zmq_msg_tick(x);
+//      _zmq_msg_tick(x);
    }
    else _zmq_error(zmq_errno());
 }
 
-// create an outgoing connection, args are same as for bind
+/**
+ * create an outgoing connection, args are same as for bind
+ */
 void _zmq_connect(t_zmq *x, t_symbol *s) {
    if(! x->zmq_socket) {
       error("create socket first");
@@ -171,12 +218,15 @@ void _zmq_connect(t_zmq *x, t_symbol *s) {
    else _zmq_error(zmq_errno());
 }
 
-// close socket
+/**
+ * close socket
+ */
 void _zmq_close(t_zmq *x) {
+   _zmq_stop_receiver(x);
    int r;
    if(x->zmq_socket) {
       r=zmq_close(x->zmq_socket);
-      clock_unset(x->x_clock);
+//      clock_unset(x->x_clock);
       if(r==0) {
          post("socket closed");
       } else {
@@ -185,6 +235,9 @@ void _zmq_close(t_zmq *x) {
    }
 }
 
+/**
+ * send a message
+ */
 void _zmq_send(t_zmq *x, t_symbol *s) {
    int r;
    char buf[MAXPDSTRING];
@@ -200,25 +253,32 @@ void _zmq_send(t_zmq *x, t_symbol *s) {
       return;
    }
    // do nonblocking mode here or listen for messages in a different loop
+   return;
    r=zmq_recv (x->zmq_socket, buf, MAXPDSTRING, 0);
+   buf[r] = 0; // terminate
    if(r>0) {
       outlet_symbol(x->s_out, gensym(buf));
    }
 }
 
-// subscribe and unsubscribe for pub/sub pattern
+/**
+ * subscribe and unsubscribe for pub/sub pattern
+ */
 void _zmq_subscribe(t_zmq *x, t_symbol *s) {
    zmq_setsockopt(x->zmq_socket, ZMQ_SUBSCRIBE, s->s_name, strlen(s->s_name));
    post("subscribe to %s", s->s_name);
-   _zmq_msg_tick(x);
+   _zmq_start_receiver(x);
 }
 
 void _zmq_unsubscribe(t_zmq *x, t_symbol *s) {
    zmq_setsockopt(x, ZMQ_UNSUBSCRIBE, s, strlen(s));
    post("unsubscribe from %s", s->s_name);
+   _zmq_stop_receiver(x);
 }
 
-// create object
+/**
+ * create object
+ */
 void zmq_setup(void)
 {
    zmq_class = class_new(gensym("zmq"),
@@ -234,12 +294,27 @@ void zmq_setup(void)
    class_addmethod(zmq_class, (t_method)_zmq_bind, gensym("bind"), A_SYMBOL, 0);
    class_addmethod(zmq_class, (t_method)_zmq_connect, gensym("connect"), A_SYMBOL, 0);
    class_addmethod(zmq_class, (t_method)_zmq_close, gensym("close"), 0);
+   class_addmethod(zmq_class, (t_method)_zmq_start_receiver, gensym("start_receive"), 0);
+   class_addmethod(zmq_class, (t_method)_zmq_stop_receiver, gensym("stop_receive"), 0);
    class_addmethod(zmq_class, (t_method)_zmq_send, gensym("send"), A_SYMBOL, 0);
    class_addmethod(zmq_class, (t_method)_zmq_subscribe, gensym("subscribe"), A_SYMBOL, 0);
    class_addmethod(zmq_class, (t_method)_zmq_unsubscribe, gensym("unsubscribe"), A_SYMBOL, 0);
 }
 
-// error translator
+/**
+ * from zhelpers.h
+ *
+ * Set simple random printable identity on socket
+*/
+static void _s_set_identity (t_zmq *x) {
+    char identity [10];
+    sprintf (identity, "%04X-%04X", randof (0x10000), randof (0x10000));
+    zmq_setsockopt (x->zmq_socket, ZMQ_IDENTITY, identity, strlen (identity));
+}
+
+/**
+ * error translator
+ */
 void _zmq_error(int errno) {
    error(zmq_strerror(errno));
    /*
@@ -261,5 +336,3 @@ void _zmq_error(int errno) {
    }
    */
 }
-
-
