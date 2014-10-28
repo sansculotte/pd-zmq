@@ -71,13 +71,7 @@ void* zmq_new(void)
 void zmq_destroy(t_zmq *x) {
    clock_free(x->x_clock);
    _zmq_stop_receiver(x);
-   if(x->zmq_socket) {
-      int linger = 0;
-      int len = sizeof (linger);
-      zmq_setsockopt(x->zmq_socket, ZMQ_LINGER, &linger, &len);
-      int cr=zmq_close(x->zmq_socket);
-      if(cr==0) post("socket closed");
-   }
+   _zmq_close(x);
    if(x->zmq_context) {
 #if ZMQ_VERSION_MAJOR > 2
       int r=zmq_ctx_destroy(x->zmq_context);
@@ -114,7 +108,10 @@ void _zmq_version(void) {
  */
 void _zmq_create_socket(t_zmq *x, t_symbol *s) {
    // close any existing socket
-   _zmq_close(x);
+   if(x->zmq_socket) {
+       post("closing socket before openeing a new one");
+       _zmq_close(x);
+   }
    // push-pull/req-rep are the first pattern to implement for a POC
    int type = 0;
    if(strcmp(s->s_name, "push") == 0) {
@@ -190,7 +187,15 @@ void _zmq_stop_receiver(t_zmq *x) {
  */
 void _zmq_msg_tick(t_zmq *x) {
 
-   if (! x->run_receiver) return;
+   if ( ! x->run_receiver) return;
+   _zmq_receive(x);
+   clock_delay(x->x_clock, 1);
+}
+
+/**
+ * fetch a message
+ */
+void _zmq_receive(t_zmq *x) {
 
    int r, err;
    char buf[MAXPDSTRING];
@@ -207,7 +212,6 @@ void _zmq_msg_tick(t_zmq *x) {
           _zmq_error(err);
        }
    }
-   clock_delay(x->x_clock, 1);
 }
 
 // test tick function
@@ -230,10 +234,22 @@ void _zmq_bind(t_zmq *x, t_symbol *s) {
 //   char* endpoint = &s->s_name;
    int r = zmq_bind(x->zmq_socket, s->s_name);
    if(r==0) {
-      post("socket bound\n");
+      post("socket bound");
       // setup message listener
 //      _zmq_msg_tick(x);
    }
+   else _zmq_error(zmq_errno());
+}
+/**
+ * unbind a socket rom the specified endpoint
+ */
+void _zmq_unbind(t_zmq *x, t_symbol *s) {
+   if(! x->zmq_socket) {
+      error("no socket");
+      return;
+   }
+   int r = zmq_connect(x->zmq_socket, s->s_name);
+   if(r==0) post("socket unbound");
    else _zmq_error(zmq_errno());
 }
 
@@ -248,7 +264,19 @@ void _zmq_connect(t_zmq *x, t_symbol *s) {
 //   _zmq_close(x);
 //   char* endpoint = &s->s_name;
    int r = zmq_connect(x->zmq_socket, s->s_name);
-   if(r==0) post("socket connected\n");
+   if(r==0) post("socket connected");
+   else _zmq_error(zmq_errno());
+}
+/**
+ * disconnect from specified endpoint
+ */
+void _zmq_disconnect(t_zmq *x, t_symbol *s) {
+   if(! x->zmq_socket) {
+      error("no socket");
+      return;
+   }
+   int r = zmq_connect(x->zmq_socket, s->s_name);
+   if(r==0) post("socket discconnected");
    else _zmq_error(zmq_errno());
 }
 
@@ -259,6 +287,9 @@ void _zmq_close(t_zmq *x) {
    _zmq_stop_receiver(x);
    int r;
    if(x->zmq_socket) {
+      int linger = 0;
+      int len = sizeof (linger);
+      zmq_setsockopt(x->zmq_socket, ZMQ_LINGER, &linger, &len);
       r=zmq_close(x->zmq_socket);
 //      clock_unset(x->x_clock);
       if(r==0) {
@@ -326,8 +357,11 @@ void zmq_setup(void)
    class_addmethod(zmq_class, (t_method)_zmq_version, gensym("version"), 0);
    class_addmethod(zmq_class, (t_method)_zmq_create_socket, gensym("socket"), A_SYMBOL, 0);
    class_addmethod(zmq_class, (t_method)_zmq_bind, gensym("bind"), A_SYMBOL, 0);
+   class_addmethod(zmq_class, (t_method)_zmq_unbind, gensym("unbind"), A_SYMBOL, 0);
    class_addmethod(zmq_class, (t_method)_zmq_connect, gensym("connect"), A_SYMBOL, 0);
+   class_addmethod(zmq_class, (t_method)_zmq_disconnect, gensym("disconnect"), A_SYMBOL, 0);
    class_addmethod(zmq_class, (t_method)_zmq_close, gensym("close"), 0);
+   class_addmethod(zmq_class, (t_method)_zmq_receive, gensym("receive"), 0);
    class_addmethod(zmq_class, (t_method)_zmq_start_receiver, gensym("start_receive"), 0);
    class_addmethod(zmq_class, (t_method)_zmq_stop_receiver, gensym("stop_receive"), 0);
    class_addmethod(zmq_class, (t_method)_zmq_send, gensym("send"), A_SYMBOL, 0);
@@ -344,6 +378,7 @@ static void _s_set_identity (t_zmq *x) {
     char identity [10];
     sprintf (identity, "%04X-%04X", randof (0x10000), randof (0x10000));
     zmq_setsockopt (x->zmq_socket, ZMQ_IDENTITY, identity, strlen (identity));
+    post("socket identity: %s", identity);
 }
 
 /**
