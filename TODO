@@ -1,12 +1,13 @@
+BUGS
+* after close always crashes
+
 FIRST
-* make close not crash
-* go through: https://github.com/imatix/zguide learn how zmq works and while at it, rip out all relevant code-blocks ;)
+* go through: https://github.com/imatix/zguide learn how zmq works and while at it, rip out all relevant code-blocks
 * proper message handling
 ** multipart messages
 ** pd types conversion
-* condition checking
-** what client types can be initiated on what socket types etc
-** distinguish between PAIR and non-PAIR sockets
+*** lists
+*** numbers
 * proper architecture workflows
 ** multiconnects/multicast (pgm?)
 ** specific disconnects
