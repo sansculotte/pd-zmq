@@ -1,6 +1,6 @@
-#N canvas 590 147 450 300 10;
+#N canvas 588 146 450 300 10;
 #X obj 99 147 zmq/zmq;
-#X msg 87 56 socket subscribe;
+#X msg 99 57 socket subscribe;
 #X msg 142 90 connect tcp://127.0.0.1:5555;
 #X msg 223 129 subscribe time;
 #X obj 99 196 print;

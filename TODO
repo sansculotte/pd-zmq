@@ -1,5 +1,6 @@
 BUGS
 * after close always crashes
+* crashes when binding to port already in use by another zmq agent
 
 FIRST
 * go through: https://github.com/imatix/zguide learn how zmq works and while at it, rip out all relevant code-blocks
