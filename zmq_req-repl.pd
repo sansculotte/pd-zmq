@@ -1,4 +1,4 @@
-#N canvas 519 101 973 416 10;
+#N canvas 521 99 973 416 10;
 #X obj 71 240 zmq/zmq;
 #X msg 71 210 about;
 #X msg 114 210 version;
@@ -13,8 +13,6 @@
 #X obj 140 257 select hello;
 #X msg 210 223 send world;
 #X obj 210 204 delay 1;
-#X obj 564 275 print request_socket:;
-#X obj 140 281 print reply_socket:;
 #X msg 71 53 socket reply;
 #X msg 71 76 bind tcp://127.0.0.1:6001;
 #X msg 488 79 connect tcp://127.0.0.1:6001;
@@ -28,14 +26,16 @@
 #X text 446 77 #5;
 #X text 446 99 #6;
 #X text 426 133 last:;
+#X obj 140 281 print received request:;
+#X obj 564 275 print received reply:;
 #X connect 0 0 3 0;
 #X connect 0 0 11 0;
-#X connect 0 0 15 0;
+#X connect 0 0 27 0;
 #X connect 1 0 0 0;
 #X connect 2 0 0 0;
 #X connect 4 0 0 0;
 #X connect 5 0 8 0;
-#X connect 5 0 14 0;
+#X connect 5 0 28 0;
 #X connect 6 0 5 0;
 #X connect 7 0 5 0;
 #X connect 9 0 5 0;
@@ -43,9 +43,9 @@
 #X connect 11 0 13 0;
 #X connect 12 0 0 0;
 #X connect 13 0 12 0;
-#X connect 16 0 0 0;
-#X connect 17 0 0 0;
-#X connect 18 0 5 0;
+#X connect 14 0 0 0;
+#X connect 15 0 0 0;
+#X connect 16 0 5 0;
+#X connect 17 0 5 0;
+#X connect 18 0 0 0;
 #X connect 19 0 5 0;
-#X connect 20 0 0 0;
-#X connect 21 0 5 0;

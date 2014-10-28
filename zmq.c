@@ -18,6 +18,23 @@
 # define randof(num) (int) ((float) (num) * random () / (RAND_MAX + 1.0))
 #endif
 
+
+// shim macros for version independence
+#ifndef ZMQ_DONTWAIT
+# define ZMQ_DONTWAIT ZMQ_NOBLOCK
+#endif
+#if ZMQ_VERSION_MAJOR == 2
+# define zmq_msg_send(msg,sock,opt) zmq_send (sock, msg, opt)
+# define zmq_msg_recv(msg,sock,opt) zmq_recv (sock, msg, opt)
+# define zmq_ctx_destroy(context) zmq_term(context)
+# define ZMQ_POLL_MSEC 1000 // zmq_poll is usec
+# define ZMQ_SNDHWM ZMQ_HWM
+# define ZMQ_RCVHWM ZMQ_HWM
+#elif ZMQ_VERSION_MAJOR == 3
+# define ZMQ_POLL_MSEC 1 // zmq_poll is msec
+#endif
+
+
 static t_class *zmq_class;
 
 typedef struct _zmq {
@@ -294,11 +311,19 @@ void _zmq_close(t_zmq *x) {
 //      clock_unset(x->x_clock);
       if(r==0) {
          post("socket closed");
+         //free(x->zmq_socket);
+         x->zmq_socket = NULL;
       } else {
          _zmq_error(zmq_errno());
       }
    }
 }
+
+/*
+void _zmq_send_float(t_zmq *x, t_float *t) {
+   _zmq_send(x, gensym(t));
+}
+*/
 
 /**
  * send a message
@@ -365,6 +390,7 @@ void zmq_setup(void)
    class_addmethod(zmq_class, (t_method)_zmq_start_receiver, gensym("start_receive"), 0);
    class_addmethod(zmq_class, (t_method)_zmq_stop_receiver, gensym("stop_receive"), 0);
    class_addmethod(zmq_class, (t_method)_zmq_send, gensym("send"), A_SYMBOL, 0);
+//   class_addmethod(zmq_class, (t_method)_zmq_send_float, gensym("send"), A_FLOAT, 0);
    class_addmethod(zmq_class, (t_method)_zmq_subscribe, gensym("subscribe"), A_SYMBOL, 0);
    class_addmethod(zmq_class, (t_method)_zmq_unsubscribe, gensym("unsubscribe"), A_SYMBOL, 0);
 }

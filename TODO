@@ -1,8 +1,8 @@
 BUGS
-* after close always crashes
 * crashes when binding to port already in use by another zmq agent
 
 FIRST
+* close/destroy properly: http://zguide.zeromq.org/page:all#Making-a-Clean-Exit
 * go through: https://github.com/imatix/zguide learn how zmq works and while at it, rip out all relevant code-blocks
 * proper message handling
 ** multipart messages

@@ -1,0 +1,28 @@
+#N canvas 588 146 968 326 10;
+#X obj 544 173 zmq/zmq;
+#X msg 544 83 socket subscribe;
+#X msg 587 116 connect tcp://127.0.0.1:5555;
+#X msg 668 155 subscribe time;
+#X obj 544 222 print;
+#X msg 658 216 close;
+#X msg 680 176 unsubscribe time;
+#X obj 92 188 zmq/zmq;
+#X msg 92 84 socket publish;
+#X msg 141 128 bind tcp://127.0.0.1:5555;
+#X obj 228 52 metro 1000;
+#X obj 228 31 tgl 15 0 empty empty empty 17 7 0 10 -262144 -1 -1 1
+1;
+#X obj 228 75 random 1000;
+#X msg 228 98 send time-\$1;
+#X connect 0 0 4 0;
+#X connect 1 0 0 0;
+#X connect 2 0 0 0;
+#X connect 3 0 0 0;
+#X connect 5 0 0 0;
+#X connect 6 0 0 0;
+#X connect 8 0 7 0;
+#X connect 9 0 7 0;
+#X connect 10 0 12 0;
+#X connect 11 0 10 0;
+#X connect 12 0 13 0;
+#X connect 13 0 7 0;
