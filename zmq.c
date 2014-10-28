@@ -22,11 +22,12 @@ static t_class *zmq_class;
 
 typedef struct _zmq {
    t_object  x_obj;
-   void     *zmq_context;
-   void     *zmq_socket;
-   t_clock  *x_clock;
-   t_outlet *s_out;
-   int      run_receiver;
+   void      *zmq_context;
+   void      *zmq_socket;
+   t_clock   *x_clock;
+   t_outlet  *s_out;
+   int       run_receiver;
+//   int       socket_type;
 } t_zmq;
 
 void _zmq_error(int errno);
@@ -111,7 +112,7 @@ void _zmq_create_socket(t_zmq *x, t_symbol *s) {
    // close any existing socket
    _zmq_close(x);
    // push-pull/req-rep are the first pattern to implement for a POC
-   int type;
+   int type = 0;
    if(strcmp(s->s_name, "push") == 0) {
       type = ZMQ_PUSH;
    } else
@@ -135,6 +136,7 @@ void _zmq_create_socket(t_zmq *x, t_symbol *s) {
       return;
    }
 
+//   x->socket_type = type;
    x->zmq_socket = zmq_socket(x->zmq_context, type);
    _s_set_identity(x);
 
@@ -144,8 +146,36 @@ void _zmq_create_socket(t_zmq *x, t_symbol *s) {
  * start/stop the receiver loop
  */
 void _zmq_start_receiver(t_zmq *x) {
-   x->run_receiver = 1;
-   _zmq_msg_tick(x);
+    // do nothing when alread running
+   if( x->run_receiver == 1) {
+       return;
+   }
+   // check if the socket exists. there's no way in the api
+   // to test if the socket is bound/connected
+   if( ! x->zmq_socket) {
+      error("create a socket first");
+      return;
+   }
+   //int type = x->socket_type;
+   int type;
+   size_t len = sizeof (type);
+   zmq_getsockopt(x->zmq_socket, ZMQ_TYPE, &type, &len); 
+   //   post("socket type: %d", type);
+   // this needs to do more of these checks
+   // most crashes seem to happen when starting the receive loop
+   // also not sure if this is actually correct
+   switch (type) {
+       case ZMQ_REP:
+       case ZMQ_REQ:
+       case ZMQ_PULL:
+       case ZMQ_SUB:
+           post("starting receiver");
+           x->run_receiver = 1;
+           _zmq_msg_tick(x);
+           break;
+       default:
+           post("socket type does not allow receive\n");
+   }
 }
 void _zmq_stop_receiver(t_zmq *x) {
    x->run_receiver = 0;
