@@ -177,7 +177,7 @@ void _zmq_start_receiver(t_zmq *x) {
    //int type = x->socket_type;
    int type;
    size_t len = sizeof (type);
-   zmq_getsockopt(x->zmq_socket, ZMQ_TYPE, &type, &len); 
+   zmq_getsockopt(x->zmq_socket, ZMQ_TYPE, &type, &len);
    //   post("socket type: %d", type);
    // this needs to do more of these checks
    // most crashes seem to happen when starting the receive loop
@@ -210,30 +210,21 @@ void _zmq_msg_tick(t_zmq *x) {
 }
 
 /**
- * fetch a message
- */
-void _zmq_receive(t_zmq *x) {
-
-   int r, err;
-   char buf[MAXPDSTRING];
-
-   r=zmq_recv (x->zmq_socket, buf, MAXPDSTRING, ZMQ_DONTWAIT);
-   if(r != -1) {
-       if (r > MAXPDSTRING) r = MAXPDSTRING;
-       buf[r] = 0; // terminate string
-
-       if(r>0) {
-          outlet_symbol(x->s_out, gensym(buf));
-       }
-       if((err=zmq_errno())!=EAGAIN) {
-          _zmq_error(err);
-       }
-   }
-}
-
-// test tick function
+ * send an empty message
+ * which will be received as bang
+ * can be used for signalling/heartbeat
+*/
 void zmq_bang(t_zmq *x) {
-   _zmq_msg_tick(x);
+   int r;
+   if ( ! x->zmq_socket) {
+      error("create and connect socket before sending anything");
+      return;
+   }
+   r=zmq_send (x->zmq_socket, "", 0, ZMQ_DONTWAIT);
+   if(r == -1) {
+      _zmq_error(zmq_errno);
+      return;
+   }
 //   outlet_float(x->s_out, rand());
 }
 
@@ -246,7 +237,7 @@ void _zmq_bind(t_zmq *x, t_symbol *s) {
    if(! x->zmq_socket) {
       error("create a socket first");
       return;
-   } 
+   }
 //   _zmq_close(x);
 //   char* endpoint = &s->s_name;
    int r = zmq_bind(x->zmq_socket, s->s_name);
@@ -342,12 +333,38 @@ void _zmq_send(t_zmq *x, t_symbol *s) {
       _zmq_error(zmq_errno);
       return;
    }
-   // do nonblocking mode here or listen for messages in a different loop
+   // TODO:
+   // for some socket types (esp REQ) this would better fetch the
+   // reply in the same function than use the receieve loop
    return;
    r=zmq_recv (x->zmq_socket, buf, MAXPDSTRING, 0);
    buf[r] = 0; // terminate
    if(r>0) {
       outlet_symbol(x->s_out, gensym(buf));
+   }
+}
+
+/**
+ * fetch a message
+ */
+void _zmq_receive(t_zmq *x) {
+
+   int r, err;
+   char buf[MAXPDSTRING];
+
+   r=zmq_recv (x->zmq_socket, buf, MAXPDSTRING, ZMQ_DONTWAIT);
+   if(r != -1) {
+       if (r > MAXPDSTRING) r = MAXPDSTRING; // brutally cut off excessive bytes
+       buf[r] = 0; // terminate string
+
+       if(r>0) {
+          outlet_symbol(x->s_out, gensym(buf));
+       } else {
+          outlet_bang(x->s_out);
+       }
+       if((err=zmq_errno())!=EAGAIN) {
+          _zmq_error(err);
+       }
    }
 }
 
@@ -359,7 +376,6 @@ void _zmq_subscribe(t_zmq *x, t_symbol *s) {
    post("subscribe to %s", s->s_name);
    _zmq_start_receiver(x);
 }
-
 void _zmq_unsubscribe(t_zmq *x, t_symbol *s) {
    zmq_setsockopt(x, ZMQ_UNSUBSCRIBE, s, strlen(s));
    post("unsubscribe from %s", s->s_name);
@@ -423,7 +439,7 @@ void _zmq_error(int errno) {
       case EADDRINUSE:
          error("The requested address is already in use."); break;
       case EADDRNOTAVAIL:
-         error("The requested address was not local."); break; 
+         error("The requested address was not local."); break;
       case ENOTSOCK:
          error("The provided socket was invalid."); break;
       default:
