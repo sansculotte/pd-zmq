@@ -34,6 +34,7 @@
 # define ZMQ_POLL_MSEC 1 // zmq_poll is msec
 #endif
 
+#define FUDI 1
 
 static t_class *zmq_class;
 
@@ -44,7 +45,7 @@ typedef struct _zmq {
    t_clock   *x_clock;
    t_outlet  *s_out;
    int       run_receiver;
-//   int       socket_type;
+   int       socket_type;
 } t_zmq;
 
 void _zmq_error(int errno);
@@ -52,6 +53,7 @@ void _zmq_msg_tick(t_zmq *x);
 void _zmq_close(t_zmq *x);
 void _zmq_start_receiver(t_zmq *x);
 void _zmq_stop_receiver(t_zmq *x);
+void _parse_fudi(t_zmq *x, t_binbuf *b);
 static void _s_set_identity (t_zmq *x);
 
 /**
@@ -154,7 +156,7 @@ void _zmq_create_socket(t_zmq *x, t_symbol *s) {
       return;
    }
 
-//   x->socket_type = type;
+   x->socket_type = type;
    x->zmq_socket = zmq_socket(x->zmq_context, type);
    _s_set_identity(x);
 
@@ -175,14 +177,14 @@ void _zmq_start_receiver(t_zmq *x) {
       return;
    }
    //int type = x->socket_type;
-   int type;
-   size_t len = sizeof (type);
-   zmq_getsockopt(x->zmq_socket, ZMQ_TYPE, &type, &len);
+   //int type;
+   //size_t len = sizeof (type);
+   //zmq_getsockopt(x->zmq_socket, ZMQ_TYPE, &type, &len);
    //   post("socket type: %d", type);
    // this needs to do more of these checks
    // most crashes seem to happen when starting the receive loop
    // also not sure if this is actually correct
-   switch (type) {
+   switch (x->socket_type) {
        case ZMQ_REP:
        case ZMQ_REQ:
        case ZMQ_PULL:
@@ -319,29 +321,59 @@ void _zmq_send_float(t_zmq *x, t_float *t) {
 /**
  * send a message
  */
-void _zmq_send(t_zmq *x, t_symbol *s) {
+void _zmq_send(t_zmq *x, t_symbol *s, int argc, t_atom* argv) {
    int r;
-   char buf[MAXPDSTRING];
+   int length;
+   char *buf;
+   t_binbuf *b = 0;
+   //char buf[MAXPDSTRING];
    int msg_len = strlen(s->s_name);
    if (msg_len==0) return;
    if ( ! x->zmq_socket) {
       error("create and connect socket before sending");
       return;
    }
-   r=zmq_send (x->zmq_socket, s->s_name, msg_len, ZMQ_DONTWAIT);
+
+   if(FUDI) {
+      t_atom at;
+      b = binbuf_new();
+      binbuf_add(b, argc, argv);
+      SETSEMI(&at);
+      binbuf_add(b, 1, &at);
+      binbuf_gettext(b, &buf, &length);
+   } else {
+      length = argc;
+      buf = alloca(argc);
+      memcpy(buf, (char *)argv, length);
+   }
+
+/*
+   int rc = zmq_msg_init_size (&msg, length);
+   memcpy(zmq_msg_data(&msg), &buf, length);
+   r = zmq_sendmsg (x->zmq_socket, &msg, 0);
+*/
+
+//   r=zmq_send (x->zmq_socket, buf, length, ZMQ_DONTWAIT);
+
+   if(FUDI)  r=zmq_send (x->zmq_socket, buf, length, ZMQ_DONTWAIT);
+   else      r=zmq_send (x->zmq_socket, s->s_name, strlen(s->s_name), ZMQ_DONTWAIT);
+   post("transmitted %i bytes", r);
+
    if(r == -1) {
       _zmq_error(zmq_errno);
-      return;
    }
-   // TODO:
-   // for some socket types (esp REQ) this would better fetch the
-   // reply in the same function than use the receieve loop
+
+/*
+   // if REQ wait for reply
+   if(x->socket_type==ZMQ_REQ) {
+      _zmq_receive(x);
+   }
+*/
+   if(FUDI) {
+      t_freebytes(buf, length);
+      binbuf_free(b);
+   }
    return;
-   r=zmq_recv (x->zmq_socket, buf, MAXPDSTRING, 0);
-   buf[r] = 0; // terminate
-   if(r>0) {
-      outlet_symbol(x->s_out, gensym(buf));
-   }
 }
 
 /**
@@ -358,7 +390,13 @@ void _zmq_receive(t_zmq *x) {
        buf[r] = 0; // terminate string
 
        if(r>0) {
-          outlet_symbol(x->s_out, gensym(buf));
+          if(FUDI) {
+             t_binbuf *b = binbuf_new();
+             binbuf_add(b, r, buf);
+             _parse_fudi(x, b);
+          } else {
+             outlet_symbol(x->s_out, gensym(buf));
+          }
        } else {
           outlet_bang(x->s_out);
        }
@@ -366,6 +404,40 @@ void _zmq_receive(t_zmq *x) {
           _zmq_error(err);
        }
    }
+}
+
+void _parse_fudi(t_zmq *x, t_binbuf *b) {
+    int msg, natom = binbuf_getnatom(b);
+    t_atom *at = binbuf_getvec(b);
+    post("FUDI receive %i bytes", natom);
+    for (msg = 0; msg < natom;)
+    {
+        int emsg;
+        for (emsg = msg; emsg < natom && at[emsg].a_type != A_COMMA
+            && at[emsg].a_type != A_SEMI; emsg++)
+                ;
+        if (emsg > msg)
+        {
+            int i;
+            for (i = msg; i < emsg; i++)
+                if (at[i].a_type == A_DOLLAR || at[i].a_type == A_DOLLSYM)
+            {
+                pd_error(x, "netreceive: got dollar sign in message");
+                goto nodice;
+            }
+            if (at[msg].a_type == A_FLOAT)
+            {
+                if (emsg > msg + 1)
+                    outlet_list(x->s_out, 0, emsg-msg, at + msg);
+                else outlet_float(x->s_out, at[msg].a_w.w_float);
+            }
+            else if (at[msg].a_type == A_SYMBOL)
+                outlet_anything(x->s_out, at[msg].a_w.w_symbol,
+                    emsg-msg-1, at + msg + 1);
+        }
+    nodice:
+        msg = emsg + 1;
+    }
 }
 
 /**
@@ -405,7 +477,8 @@ void zmq_setup(void)
    class_addmethod(zmq_class, (t_method)_zmq_receive, gensym("receive"), 0);
    class_addmethod(zmq_class, (t_method)_zmq_start_receiver, gensym("start_receive"), 0);
    class_addmethod(zmq_class, (t_method)_zmq_stop_receiver, gensym("stop_receive"), 0);
-   class_addmethod(zmq_class, (t_method)_zmq_send, gensym("send"), A_SYMBOL, 0);
+//   class_addmethod(zmq_class, (t_method)_zmq_send, gensym("send"), A_SYMBOL, 0);
+   class_addmethod(zmq_class, (t_method)_zmq_send, gensym("send"), A_GIMME, 0);
 //   class_addmethod(zmq_class, (t_method)_zmq_send_float, gensym("send"), A_FLOAT, 0);
    class_addmethod(zmq_class, (t_method)_zmq_subscribe, gensym("subscribe"), A_SYMBOL, 0);
    class_addmethod(zmq_class, (t_method)_zmq_unsubscribe, gensym("unsubscribe"), A_SYMBOL, 0);
