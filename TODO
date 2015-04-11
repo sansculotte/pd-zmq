@@ -1,14 +1,13 @@
 BUGS
 * crashes when binding to port already in use by another zmq agent
+* crashes when sending on an unconnected socket
 
 FIRST
+* compatibility with netsend FUDI/binary
+** lists
+** numbers
 * close/destroy properly: http://zguide.zeromq.org/page:all#Making-a-Clean-Exit
-* go through: https://github.com/imatix/zguide learn how zmq works and while at it, rip out all relevant code-blocks
-* proper message handling
 ** multipart messages
-** pd types conversion
-*** lists
-*** numbers
 * proper architecture workflows
 ** multiconnects/multicast (pgm?)
 ** specific disconnects

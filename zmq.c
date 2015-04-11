@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <zmq.h>
 
+
 #if (defined (WIN32))
 # define randof(num) (int) ((float) (num) * rand () / (RAND_MAX + 1.0))
 #else
@@ -34,7 +35,6 @@
 # define ZMQ_POLL_MSEC 1 // zmq_poll is msec
 #endif
 
-#define FUDI 1
 
 static t_class *zmq_class;
 
@@ -53,7 +53,6 @@ void _zmq_msg_tick(t_zmq *x);
 void _zmq_close(t_zmq *x);
 void _zmq_start_receiver(t_zmq *x);
 void _zmq_stop_receiver(t_zmq *x);
-void _parse_fudi(t_zmq *x, t_binbuf *b);
 static void _s_set_identity (t_zmq *x);
 
 /**
@@ -334,45 +333,27 @@ void _zmq_send(t_zmq *x, t_symbol *s, int argc, t_atom* argv) {
       return;
    }
 
-   if(FUDI) {
-      t_atom at;
-      b = binbuf_new();
-      binbuf_add(b, argc, argv);
-      SETSEMI(&at);
-      binbuf_add(b, 1, &at);
-      binbuf_gettext(b, &buf, &length);
-   } else {
-      length = argc;
-      buf = alloca(argc);
-      memcpy(buf, (char *)argv, length);
-   }
+   t_atom at;
+   b = binbuf_new();
+   binbuf_add(b, argc, argv);
+   SETSEMI(&at);
+   binbuf_add(b, 1, &at);
+   binbuf_gettext(b, &buf, &length);
+   //post("msg length %i", length);
 
-/*
-   int rc = zmq_msg_init_size (&msg, length);
-   memcpy(zmq_msg_data(&msg), &buf, length);
-   r = zmq_sendmsg (x->zmq_socket, &msg, 0);
-*/
-
-//   r=zmq_send (x->zmq_socket, buf, length, ZMQ_DONTWAIT);
-
-   if(FUDI)  r=zmq_send (x->zmq_socket, buf, length, ZMQ_DONTWAIT);
-   else      r=zmq_send (x->zmq_socket, s->s_name, strlen(s->s_name), ZMQ_DONTWAIT);
-   post("transmitted %i bytes", r);
+   //s_send(x->zmq_socket, buf);
+   r=zmq_send (x->zmq_socket, buf, strlen(buf), 0);
 
    if(r == -1) {
       _zmq_error(zmq_errno);
+      return;
    }
 
-/*
-   // if REQ wait for reply
+   // if REQ socket wait for reply
    if(x->socket_type==ZMQ_REQ) {
       _zmq_receive(x);
    }
-*/
-   if(FUDI) {
-      t_freebytes(buf, length);
-      binbuf_free(b);
-   }
+
    return;
 }
 
@@ -383,20 +364,48 @@ void _zmq_receive(t_zmq *x) {
 
    int r, err;
    char buf[MAXPDSTRING];
+   t_binbuf *b;
+   int msg;
 
    r=zmq_recv (x->zmq_socket, buf, MAXPDSTRING, ZMQ_DONTWAIT);
    if(r != -1) {
        if (r > MAXPDSTRING) r = MAXPDSTRING; // brutally cut off excessive bytes
        buf[r] = 0; // terminate string
-
-       if(r>0) {
-          if(FUDI) {
-             t_binbuf *b = binbuf_new();
-             binbuf_add(b, r, buf);
-             _parse_fudi(x, b);
-          } else {
-             outlet_symbol(x->s_out, gensym(buf));
+       if(r > 0) {
+          b = binbuf_new();
+          binbuf_text(b, buf, r);
+          // the following code is cp'ed from x_net.c::netreceive_doit
+          int natom = binbuf_getnatom(b);
+          t_atom *at = binbuf_getvec(b);
+          for (msg = 0; msg < natom;)
+          {
+              int emsg;
+              for (emsg = msg; emsg < natom && at[emsg].a_type != A_COMMA
+                      && at[emsg].a_type != A_SEMI; emsg++)
+                  ;
+              if (emsg > msg)
+              {
+                  int i;
+                  for (i = msg; i < emsg; i++)
+                      if (at[i].a_type == A_DOLLAR || at[i].a_type == A_DOLLSYM)
+                      {
+                          pd_error(x, "zmq_receive: got dollar sign in message");
+                          goto nodice;
+                      }
+                  if (at[msg].a_type == A_FLOAT)
+                  {
+                      if (emsg > msg + 1)
+                          outlet_list(x->s_out, 0, emsg-msg, at + msg);
+                      else outlet_float(x->s_out, at[msg].a_w.w_float);
+                  }
+                  else if (at[msg].a_type == A_SYMBOL)
+                      outlet_anything(x->s_out, at[msg].a_w.w_symbol,
+                              emsg-msg-1, at + msg + 1);
+              }
+          nodice:
+              msg = emsg + 1;
           }
+
        } else {
           outlet_bang(x->s_out);
        }
@@ -404,40 +413,6 @@ void _zmq_receive(t_zmq *x) {
           _zmq_error(err);
        }
    }
-}
-
-void _parse_fudi(t_zmq *x, t_binbuf *b) {
-    int msg, natom = binbuf_getnatom(b);
-    t_atom *at = binbuf_getvec(b);
-    post("FUDI receive %i bytes", natom);
-    for (msg = 0; msg < natom;)
-    {
-        int emsg;
-        for (emsg = msg; emsg < natom && at[emsg].a_type != A_COMMA
-            && at[emsg].a_type != A_SEMI; emsg++)
-                ;
-        if (emsg > msg)
-        {
-            int i;
-            for (i = msg; i < emsg; i++)
-                if (at[i].a_type == A_DOLLAR || at[i].a_type == A_DOLLSYM)
-            {
-                pd_error(x, "netreceive: got dollar sign in message");
-                goto nodice;
-            }
-            if (at[msg].a_type == A_FLOAT)
-            {
-                if (emsg > msg + 1)
-                    outlet_list(x->s_out, 0, emsg-msg, at + msg);
-                else outlet_float(x->s_out, at[msg].a_w.w_float);
-            }
-            else if (at[msg].a_type == A_SYMBOL)
-                outlet_anything(x->s_out, at[msg].a_w.w_symbol,
-                    emsg-msg-1, at + msg + 1);
-        }
-    nodice:
-        msg = emsg + 1;
-    }
 }
 
 /**
@@ -477,7 +452,6 @@ void zmq_setup(void)
    class_addmethod(zmq_class, (t_method)_zmq_receive, gensym("receive"), 0);
    class_addmethod(zmq_class, (t_method)_zmq_start_receiver, gensym("start_receive"), 0);
    class_addmethod(zmq_class, (t_method)_zmq_stop_receiver, gensym("stop_receive"), 0);
-//   class_addmethod(zmq_class, (t_method)_zmq_send, gensym("send"), A_SYMBOL, 0);
    class_addmethod(zmq_class, (t_method)_zmq_send, gensym("send"), A_GIMME, 0);
 //   class_addmethod(zmq_class, (t_method)_zmq_send_float, gensym("send"), A_FLOAT, 0);
    class_addmethod(zmq_class, (t_method)_zmq_subscribe, gensym("subscribe"), A_SYMBOL, 0);
