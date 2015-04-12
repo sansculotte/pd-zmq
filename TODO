@@ -1,7 +1,3 @@
-BUGS
-* crashes when binding to port already in use by another zmq agent
-* crashes when starting receiver on REPL socket
-
 FIRST
 * close/destroy properly: http://zguide.zeromq.org/page:all#Making-a-Clean-Exit
 * status information and control
@@ -9,11 +5,16 @@ FIRST
 ** custom state tracking (socket_state)
 * read docs, examples, other lang bindings
 * external sample programs
+** python
+** nodejs
 
 LATER
 * proper architecture workflows
 ** multiconnects/multicast (pgm?)
-* special purpose objects [zmf_router], [zmf_pair], ...
+* complex objects
+** [zmf_router] -- [broker] as abstraction?
+** [zmf_dealer] -/
+** [zmf_pair]
 * implement streams to send audio blocks
 ** binary modes
 * send/receive modes
