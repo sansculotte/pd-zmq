@@ -1,22 +1,22 @@
 BUGS
 * crashes when binding to port already in use by another zmq agent
-* crashes when sending on an unconnected socket
+* crashes when starting receiver on REPL socket
 
 FIRST
-* compatibility with netsend FUDI/binary
-** lists
-** numbers
+* cleanup Makefile
 * close/destroy properly: http://zguide.zeromq.org/page:all#Making-a-Clean-Exit
-** multipart messages
-* proper architecture workflows
-** multiconnects/multicast (pgm?)
-** specific disconnects
 * status information and control
 ** properly use getsockopt
+** custom state tracking (socket_state)
 * read docs, examples, other lang bindings
+* external sample programs
 
 LATER
+* proper architecture workflows
+** multiconnects/multicast (pgm?)
 * special purpose objects [zmf_router], [zmf_pair], ...
 * implement streams to send audio blocks
-** binary messages
-* take care of different zmq versions
+** binary modes
+* send/receive modes
+** binary (for audio/video frames)
+** string (for communication w external programs)
