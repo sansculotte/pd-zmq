@@ -2,8 +2,7 @@
  *
  * ZeroMQ as puredata external
  *
- * u@sansculotte.net 2014
- * version 0.0.2
+ * u@sansculotte.net 2014-2015
  *
  */
 
@@ -12,7 +11,7 @@
 #include <stdlib.h>
 #include <zmq.h>
 
-#define VERSION "v0.0.2"
+#define VERSION "v0.0.3"
 
 #define TRUE 1
 #define FALSE 0
