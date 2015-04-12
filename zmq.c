@@ -12,6 +12,11 @@
 #include <stdlib.h>
 #include <zmq.h>
 
+#define VERSION "v0.0.2"
+
+#define TRUE 1
+#define FALSE 0
+
 
 #if (defined (WIN32))
 # define randof(num) (int) ((float) (num) * rand () / (RAND_MAX + 1.0))
@@ -35,6 +40,7 @@
 # define ZMQ_POLL_MSEC 1 // zmq_poll is msec
 #endif
 
+typedef enum {NONE, CONNECTED, BOUND} t_sstate;
 
 static t_class *zmq_class;
 
@@ -46,6 +52,8 @@ typedef struct _zmq {
    t_outlet  *s_out;
    int       run_receiver;
    int       socket_type;
+   int       sub_name_len;
+   t_sstate  socket_state;
 } t_zmq;
 
 void _zmq_error(int errno);
@@ -54,6 +62,8 @@ void _zmq_close(t_zmq *x);
 void _zmq_start_receiver(t_zmq *x);
 void _zmq_stop_receiver(t_zmq *x);
 static void _s_set_identity (t_zmq *x);
+char _can_send(t_zmq *x);
+char _can_receive(t_zmq *x);
 
 /**
  * constructor
@@ -156,6 +166,7 @@ void _zmq_create_socket(t_zmq *x, t_symbol *s) {
    }
 
    x->socket_type = type;
+   x->socket_state = NONE;
    x->zmq_socket = zmq_socket(x->zmq_context, type);
    _s_set_identity(x);
 
@@ -183,17 +194,10 @@ void _zmq_start_receiver(t_zmq *x) {
    // this needs to do more of these checks
    // most crashes seem to happen when starting the receive loop
    // also not sure if this is actually correct
-   switch (x->socket_type) {
-       case ZMQ_REP:
-       case ZMQ_REQ:
-       case ZMQ_PULL:
-       case ZMQ_SUB:
-           post("starting receiver");
-           x->run_receiver = 1;
-           _zmq_msg_tick(x);
-           break;
-       default:
-           post("socket type does not allow receive\n");
+   if(_can_receive(x)) {
+       post("starting receiver");
+       x->run_receiver = 1;
+       _zmq_msg_tick(x);
    }
 }
 void _zmq_stop_receiver(t_zmq *x) {
@@ -216,17 +220,18 @@ void _zmq_msg_tick(t_zmq *x) {
  * can be used for signalling/heartbeat
 */
 void zmq_bang(t_zmq *x) {
-   int r;
+   if ( ! _can_send(x)) {
+       return;
+   }
    if ( ! x->zmq_socket) {
       error("create and connect socket before sending anything");
       return;
    }
-   r=zmq_send (x->zmq_socket, "", 0, ZMQ_DONTWAIT);
+   int r=zmq_send (x->zmq_socket, "", 0, ZMQ_DONTWAIT);
    if(r == -1) {
       _zmq_error(zmq_errno);
       return;
    }
-//   outlet_float(x->s_out, rand());
 }
 
 /**
@@ -243,6 +248,7 @@ void _zmq_bind(t_zmq *x, t_symbol *s) {
 //   char* endpoint = &s->s_name;
    int r = zmq_bind(x->zmq_socket, s->s_name);
    if(r==0) {
+      x->socket_state = BOUND;
       post("socket bound");
       // setup message listener
 //      _zmq_msg_tick(x);
@@ -257,8 +263,15 @@ void _zmq_unbind(t_zmq *x, t_symbol *s) {
       error("no socket");
       return;
    }
-   int r = zmq_connect(x->zmq_socket, s->s_name);
-   if(r==0) post("socket unbound");
+   if(x->socket_state != BOUND) {
+      error("socket not bound");
+      return;
+   }
+   int r = zmq_unbind(x->zmq_socket, s->s_name);
+   if(r==0) {
+      x->socket_state = NONE;
+      post("socket unbound");
+   }
    else _zmq_error(zmq_errno());
 }
 
@@ -273,7 +286,10 @@ void _zmq_connect(t_zmq *x, t_symbol *s) {
 //   _zmq_close(x);
 //   char* endpoint = &s->s_name;
    int r = zmq_connect(x->zmq_socket, s->s_name);
-   if(r==0) post("socket connected");
+   if(r==0) {
+      x->socket_state = CONNECTED;
+      post("socket connected");
+   }
    else _zmq_error(zmq_errno());
 }
 /**
@@ -284,8 +300,15 @@ void _zmq_disconnect(t_zmq *x, t_symbol *s) {
       error("no socket");
       return;
    }
-   int r = zmq_connect(x->zmq_socket, s->s_name);
-   if(r==0) post("socket discconnected");
+   if(x->socket_state != CONNECTED) {
+      error("socket not connected");
+      return;
+   }
+   int r = zmq_disconnect(x->zmq_socket, s->s_name);
+   if(r==0) {
+      x->socket_state = NONE;
+      post("socket discconnected");
+   }
    else _zmq_error(zmq_errno());
 }
 
@@ -311,27 +334,24 @@ void _zmq_close(t_zmq *x) {
    }
 }
 
-/*
-void _zmq_send_float(t_zmq *x, t_float *t) {
-   _zmq_send(x, gensym(t));
-}
-*/
-
 /**
  * send a message
  */
 void _zmq_send(t_zmq *x, t_symbol *s, int argc, t_atom* argv) {
+
+   if ( ! x->zmq_socket) {
+      post("[!] create and connect socket before sending");
+      return;
+   }
+
+   if ( ! _can_send(x)) {
+       return;
+   }
+
    int r;
    int length;
    char *buf;
    t_binbuf *b = 0;
-   //char buf[MAXPDSTRING];
-   int msg_len = strlen(s->s_name);
-   if (msg_len==0) return;
-   if ( ! x->zmq_socket) {
-      error("create and connect socket before sending");
-      return;
-   }
 
    t_atom at;
    b = binbuf_new();
@@ -362,10 +382,14 @@ void _zmq_send(t_zmq *x, t_symbol *s, int argc, t_atom* argv) {
  */
 void _zmq_receive(t_zmq *x) {
 
+   if ( ! _can_receive(x)) {
+      return;
+   }
+
    int r, err;
    char buf[MAXPDSTRING];
    t_binbuf *b;
-   int msg;
+   int msg, i=0;
 
    r=zmq_recv (x->zmq_socket, buf, MAXPDSTRING, ZMQ_DONTWAIT);
    if(r != -1) {
@@ -421,11 +445,13 @@ void _zmq_receive(t_zmq *x) {
 void _zmq_subscribe(t_zmq *x, t_symbol *s) {
    zmq_setsockopt(x->zmq_socket, ZMQ_SUBSCRIBE, s->s_name, strlen(s->s_name));
    post("subscribe to %s", s->s_name);
+   x->sub_name_len = strlen(s->s_name);
    _zmq_start_receiver(x);
 }
 void _zmq_unsubscribe(t_zmq *x, t_symbol *s) {
    zmq_setsockopt(x, ZMQ_UNSUBSCRIBE, s, strlen(s));
    post("unsubscribe from %s", s->s_name);
+   x->sub_name_len = 0;
    _zmq_stop_receiver(x);
 }
 
@@ -456,6 +482,46 @@ void zmq_setup(void)
 //   class_addmethod(zmq_class, (t_method)_zmq_send_float, gensym("send"), A_FLOAT, 0);
    class_addmethod(zmq_class, (t_method)_zmq_subscribe, gensym("subscribe"), A_SYMBOL, 0);
    class_addmethod(zmq_class, (t_method)_zmq_unsubscribe, gensym("unsubscribe"), A_SYMBOL, 0);
+}
+
+/**
+ * check if the socket allows sending
+ */
+char _can_send(t_zmq *x) {
+   switch (x->socket_type) {
+      case ZMQ_REP:
+      case ZMQ_REQ:
+      case ZMQ_PUSH:
+      case ZMQ_PUB:
+         if (x->socket_state == CONNECTED || x->socket_state == BOUND) {
+             return TRUE;
+         }
+         post("[!] socket not connected or bound");
+         break;
+      default:
+         post("[!] socket type does not allow send");
+   }
+   return FALSE;
+}
+
+/**
+ * check if the socket allows receiving
+ */
+char _can_receive(t_zmq *x) {
+   switch (x->socket_type) {
+      case ZMQ_REP:
+      case ZMQ_REQ:
+      case ZMQ_PULL:
+      case ZMQ_SUB:
+         if (x->socket_state == CONNECTED || x->socket_state == BOUND) {
+             return TRUE;
+         }
+         post("[!] socket not connected or bound");
+         break;
+      default:
+         post("[!] socket type does not allow receive");
+   }
+   return FALSE;
 }
 
 /**

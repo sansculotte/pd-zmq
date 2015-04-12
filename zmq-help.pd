@@ -1,39 +1,41 @@
-#N canvas 535 98 992 408 10;
-#X msg 93 264 about;
-#X msg 92 243 version;
-#X msg 61 121 socket push;
-#X msg 73 138 socket pull;
-#X msg 88 159 socket request;
-#X msg 100 176 socket reply;
-#X floatatom 162 340 8 0 0 0 - - -, f 8;
-#X msg 211 281 bang;
-#X symbolatom 218 340 30 0 0 0 - - -, f 30;
-#X msg 116 200 close;
-#X msg 246 107 connect tcp://127.0.0.1:6001;
-#X msg 286 201 start_receive;
-#X msg 286 218 stop_receive;
-#X text 382 197 -> start/stop the receive loop. some socket types do
+#N canvas 533 91 1019 546 10;
+#X msg 93 314 about;
+#X msg 92 293 version;
+#X msg 61 171 socket push;
+#X msg 73 188 socket pull;
+#X msg 88 209 socket request;
+#X msg 100 226 socket reply;
+#X floatatom 162 390 8 0 0 0 - - -, f 8;
+#X msg 211 331 bang;
+#X symbolatom 218 390 30 0 0 0 - - -, f 30;
+#X msg 116 250 close;
+#X msg 246 157 connect tcp://127.0.0.1:6001;
+#X msg 286 251 start_receive;
+#X msg 286 268 stop_receive;
+#X text 382 247 -> start/stop the receive loop. some socket types do
 not support this \, some require it. after sending a REQ for instance
 you must receive the result.;
-#X msg 287 264 receive;
-#X msg 246 124 disconnect tcp://127.0.0.1:6001;
-#X msg 246 155 bind tcp://127.0.0.1:6001;
-#X msg 246 172 unbind tcp://127.0.0.1:6001;
-#X text 52 18 ømq api: http://api.zeromq.org/3-2:_start;
-#X text 365 265 receive just one message;
-#X obj 162 281 zmq;
-#X obj 122 316 print;
-#X text 250 282 send empty message \, received as bang. can be used
+#X msg 287 314 receive;
+#X msg 246 174 disconnect tcp://127.0.0.1:6001;
+#X msg 246 205 bind tcp://127.0.0.1:6001;
+#X msg 246 222 unbind tcp://127.0.0.1:6001;
+#X text 52 68 ømq api: http://api.zeromq.org/3-2:_start;
+#X text 365 315 receive just one message;
+#X obj 162 331 zmq;
+#X obj 122 366 print;
+#X text 250 332 send empty message \, received as bang. can be used
 for signalling/heartbeat;
-#X msg 162 75 send \$1;
-#X floatatom 162 53 5 0 0 0 - - -, f 5;
-#X msg 224 75 send symbol <message>;
-#X floatatom 252 385 5 0 0 0 - - -, f 5;
-#X floatatom 286 385 5 0 0 0 - - -, f 5;
-#X floatatom 321 385 5 0 0 0 - - -, f 5;
-#X obj 162 315 route float symbol list;
-#X msg 223 47 send 23 25 42;
-#X obj 252 363 unpack 0 1 2;
+#X msg 162 125 send \$1;
+#X floatatom 162 103 5 0 0 0 - - -, f 5;
+#X msg 224 125 send symbol <message>;
+#X floatatom 252 435 5 0 0 0 - - -, f 5;
+#X floatatom 286 435 5 0 0 0 - - -, f 5;
+#X floatatom 321 435 5 0 0 0 - - -, f 5;
+#X obj 162 365 route float symbol list;
+#X msg 223 97 send 23 25 42;
+#X obj 252 413 unpack 0 1 2;
+#X text 53 15 provides access to the zeromq api. so far it can only
+take part in PUSH/PULL \, REQ/REPL and PUB/SUB pattern.;
 #X connect 0 0 20 0;
 #X connect 1 0 20 0;
 #X connect 2 0 20 0;
