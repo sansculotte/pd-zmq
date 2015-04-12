@@ -60,6 +60,8 @@ void _zmq_msg_tick(t_zmq *x);
 void _zmq_close(t_zmq *x);
 void _zmq_start_receiver(t_zmq *x);
 void _zmq_stop_receiver(t_zmq *x);
+void _zmq_receive(t_zmq *x);
+void _zmq_send(t_zmq *x, t_symbol *s, int argc, t_atom* argv);
 static void _s_set_identity (t_zmq *x);
 char _can_send(t_zmq *x);
 char _can_receive(t_zmq *x);
@@ -388,7 +390,7 @@ void _zmq_receive(t_zmq *x) {
    int r, err;
    char buf[MAXPDSTRING];
    t_binbuf *b;
-   int msg, i=0;
+   int msg;
 
    r=zmq_recv (x->zmq_socket, buf, MAXPDSTRING, ZMQ_DONTWAIT);
    if(r != -1) {
