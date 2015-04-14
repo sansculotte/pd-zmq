@@ -244,14 +244,14 @@ void _zmq_bind(t_zmq *x, t_symbol *s) {
       error("create a socket first");
       return;
    }
-//   _zmq_close(x);
-//   char* endpoint = &s->s_name;
+   if(x->socket_state != NONE) {
+      error("socket already in use");
+      return;
+   }
    int r = zmq_bind(x->zmq_socket, s->s_name);
    if(r==0) {
       x->socket_state = BOUND;
       post("socket bound");
-      // setup message listener
-//      _zmq_msg_tick(x);
    }
    else _zmq_error(zmq_errno());
 }
@@ -283,8 +283,10 @@ void _zmq_connect(t_zmq *x, t_symbol *s) {
       error("create socket first");
       return;
    }
-//   _zmq_close(x);
-//   char* endpoint = &s->s_name;
+   if(x->socket_state != NONE) {
+      error("socket already in use");
+      return;
+   }
    int r = zmq_connect(x->zmq_socket, s->s_name);
    if(r==0) {
       x->socket_state = CONNECTED;
