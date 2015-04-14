@@ -51,7 +51,6 @@ typedef struct _zmq {
    t_outlet  *s_out;
    int       run_receiver;
    int       socket_type;
-   int       sub_name_len;
    t_sstate  socket_state;
 } t_zmq;
 
@@ -446,14 +445,11 @@ void _zmq_receive(t_zmq *x) {
 void _zmq_subscribe(t_zmq *x, t_symbol *s) {
    zmq_setsockopt(x->zmq_socket, ZMQ_SUBSCRIBE, s->s_name, strlen(s->s_name));
    post("subscribe to %s", s->s_name);
-   x->sub_name_len = strlen(s->s_name);
    _zmq_start_receiver(x);
 }
 void _zmq_unsubscribe(t_zmq *x, t_symbol *s) {
    zmq_setsockopt(x->zmq_socket, ZMQ_UNSUBSCRIBE, s->s_name, strlen(s->s_name));
    post("unsubscribe from %s", s->s_name);
-   x->sub_name_len = 0;
-   _zmq_stop_receiver(x);
 }
 
 /**
