@@ -450,7 +450,7 @@ void _zmq_subscribe(t_zmq *x, t_symbol *s) {
    _zmq_start_receiver(x);
 }
 void _zmq_unsubscribe(t_zmq *x, t_symbol *s) {
-   zmq_setsockopt(x, ZMQ_UNSUBSCRIBE, s, strlen(s));
+   zmq_setsockopt(x->zmq_socket, ZMQ_UNSUBSCRIBE, s->s_name, strlen(s->s_name));
    post("unsubscribe from %s", s->s_name);
    x->sub_name_len = 0;
    _zmq_stop_receiver(x);
