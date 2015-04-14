@@ -116,7 +116,7 @@ void zmq_destroy(t_zmq *x) {
  */
 void _zmq_about(t_zmq *x)
 {
-   post("ØMQ external u@sansculotte.net 2014\nhttp://api.zeromq.org");
+   post("ØMQ external https://github.com/sansculotte/pd-zmq\nhttp://api.zeromq.org");
 }
 
 /**
@@ -126,7 +126,7 @@ void _zmq_version(void) {
    int major, minor, patch;
    char verstr[64];
    zmq_version (&major, &minor, &patch);
-   sprintf(verstr, "ØMQ version: %d.%d.%d\n", major, minor, patch);
+   sprintf(verstr, "ØMQ version: %d.%d.%d", major, minor, patch);
    post(verstr);
 }
 
