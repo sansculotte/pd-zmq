@@ -9,6 +9,9 @@ http://puredata.info
 
 version 0.0.3
 at the moment functionality is basic, but the thing is generally usable.
+zeromq is a very basic but powerfull library so it is easy to shoot your-
+self in the foot. check out the "FAQs":http://zeromq.org/area:faq for
+some advice on usage, or consult "the guide":http://zguide.zeromq.org/page:all
 
 send and receive are using the FUDI protocol, which makes it great for
 connecting PD patches, but slightly akward for use with external nodes.
