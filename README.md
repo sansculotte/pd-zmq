@@ -49,3 +49,10 @@ Known Bugs
 
 * crashes when binding to port already in use by another zmq agent
 * crashes when starting receiver on REPL socket
+* crashes when sending on REPL socket without prior REQUEST
+* crashes when sending on a BOUND socket with no peers
+    appearently there is no queue alocated to store the message.
+    when you connect, disconnect before bind it actually works, but
+    i'm not sure if that qualifies as a workaround.
+    see: http://zeromq.org/area:faq
+    Why do I see different behavior when I bind a socket versus connect a socket?
