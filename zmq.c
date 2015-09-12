@@ -6,6 +6,7 @@
  *
  */
 
+#include "zmq.h"
 #include "m_pd.h"
 #include <string.h>
 #include <stdlib.h>
@@ -54,6 +55,9 @@ typedef struct _zmq {
    t_sstate  socket_state;
 } t_zmq;
 
+void _zmq_about(t_zmq *x);
+void _zmq_version(void);
+void _zmq_create_socket(t_zmq *x, t_symbol *s);
 void _zmq_error(int errno);
 void _zmq_msg_tick(t_zmq *x);
 void _zmq_close(t_zmq *x);
