@@ -4,15 +4,17 @@
 ZeroMQ is a barebone, ultra-efficient message Queue system with a flexible
 architecture, see:
 http://zeromq.org
+
 Puredata is a visual multimedia programming environment, see:
 http://puredata.info
 
+
 version 0.0.3
-at the moment functionality is basic, but the thing is generally usable.
-zeromq is a very basic but powerfull library so it is easy to shoot your-
+At the moment functionality is basic, but the thing is generally usable.
+zeromq is a low-level, powerfull library so it is easy to shoot your-
 self in the foot. check out the [FAQs](http://zeromq.org/area:faq) for
 some advice on usage, or consult [the guide](http://zguide.zeromq.org/page:all)
-for an extensive introduction to its architectural possibilites.
+for an extensive introduction to its vast architectural possibilites.
 
 send and receive are using the FUDI protocol, which makes it great for
 connecting PD patches, but slightly akward for use with external nodes.

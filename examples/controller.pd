@@ -1,0 +1,24 @@
+#N canvas 199 554 939 328 10;
+#X obj 163 176 zmq;
+#X msg 163 93 bind tcp://127.0.0.1:6000;
+#X obj 51 66 key;
+#X obj 163 57 t b b;
+#X msg 190 132 socket push;
+#X msg 51 114 send \$1 0.666 500;
+#X msg 163 24 start;
+#X text 406 25 Start <number of cores> headless synth patches with
+start_synths.sh and you will have a polyphonic synth \, using the round-robin
+mode of the zmq PUSH/PULL curcuit.;
+#X msg 249 24 stop;
+#X obj 249 48 t b;
+#X msg 275 48 close;
+#X connect 1 0 0 0;
+#X connect 2 0 5 0;
+#X connect 3 0 1 0;
+#X connect 3 1 4 0;
+#X connect 4 0 0 0;
+#X connect 5 0 0 0;
+#X connect 6 0 3 0;
+#X connect 8 0 9 0;
+#X connect 9 0 10 0;
+#X connect 10 0 0 0;
