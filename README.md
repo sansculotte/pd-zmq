@@ -43,6 +43,7 @@ apt-get install libzmq-dev
 cd into your pd sourcetrees external folder.
 
     git clone git@github.com:sansculotte/pd-zmq.git
+    cd pd-zmq
     make
 
 builds the external zmq.pd_linux which you can then put in pd's path,

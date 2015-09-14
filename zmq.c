@@ -6,7 +6,6 @@
  *
  */
 
-#include "zmq.h"
 #include "m_pd.h"
 #include <string.h>
 #include <stdlib.h>
@@ -144,7 +143,6 @@ void _zmq_create_socket(t_zmq *x, t_symbol *s) {
        post("closing socket before openeing a new one");
        _zmq_close(x);
    }
-   // push-pull/req-rep are the first pattern to implement for a POC
    int type = 0;
    if(strcmp(s->s_name, "push") == 0) {
       type = ZMQ_PUSH;
@@ -260,7 +258,7 @@ void _zmq_bind(t_zmq *x, t_symbol *s) {
    else _zmq_error(zmq_errno());
 }
 /**
- * unbind a socket rom the specified endpoint
+ * unbind a socket from the specified endpoint
  */
 void _zmq_unbind(t_zmq *x, t_symbol *s) {
    if(! x->zmq_socket) {
@@ -482,7 +480,6 @@ void zmq_setup(void)
    class_addmethod(zmq_class, (t_method)_zmq_start_receiver, gensym("start_receive"), 0);
    class_addmethod(zmq_class, (t_method)_zmq_stop_receiver, gensym("stop_receive"), 0);
    class_addmethod(zmq_class, (t_method)_zmq_send, gensym("send"), A_GIMME, 0);
-//   class_addmethod(zmq_class, (t_method)_zmq_send_float, gensym("send"), A_FLOAT, 0);
    class_addmethod(zmq_class, (t_method)_zmq_subscribe, gensym("subscribe"), A_SYMBOL, 0);
    class_addmethod(zmq_class, (t_method)_zmq_unsubscribe, gensym("unsubscribe"), A_SYMBOL, 0);
 }
