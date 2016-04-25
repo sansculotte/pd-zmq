@@ -54,10 +54,10 @@ typedef struct _zmq {
    t_sstate  socket_state;
 } t_zmq;
 
-void _zmq_about(t_zmq *x);
+void _zmq_about(void);
 void _zmq_version(void);
 void _zmq_create_socket(t_zmq *x, t_symbol *s);
-void _zmq_error(int errno);
+void _zmq_error(int err);
 void _zmq_msg_tick(t_zmq *x);
 void _zmq_close(t_zmq *x);
 void _zmq_start_receiver(t_zmq *x);
@@ -117,7 +117,7 @@ void zmq_destroy(t_zmq *x) {
  * ZMQ methods
  * http://api.zeromq.org
  */
-void _zmq_about(t_zmq *x)
+void _zmq_about(void)
 {
    post("ØMQ external https://github.com/sansculotte/pd-zmq\nhttp://api.zeromq.org");
 }
@@ -231,7 +231,7 @@ void zmq_bang(t_zmq *x) {
    }
    int r=zmq_send (x->zmq_socket, "", 0, ZMQ_DONTWAIT);
    if(r == -1) {
-      _zmq_error(zmq_errno);
+      _zmq_error(zmq_errno());
       return;
    }
 }
@@ -324,8 +324,7 @@ void _zmq_close(t_zmq *x) {
    int r;
    if(x->zmq_socket) {
       int linger = 0;
-      int len = sizeof (linger);
-      zmq_setsockopt(x->zmq_socket, ZMQ_LINGER, &linger, &len);
+      zmq_setsockopt(x->zmq_socket, ZMQ_LINGER, &linger, sizeof(linger));
       r=zmq_close(x->zmq_socket);
 //      clock_unset(x->x_clock);
       if(r==0) {
@@ -368,8 +367,11 @@ void _zmq_send(t_zmq *x, t_symbol *s, int argc, t_atom* argv) {
    //s_send(x->zmq_socket, buf);
    r=zmq_send (x->zmq_socket, buf, strlen(buf), 0);
 
+   t_freebytes(buf, length);
+   binbuf_free(b);
+
    if(r == -1) {
-      _zmq_error(zmq_errno);
+      _zmq_error(zmq_errno());
       return;
    }
 
@@ -539,8 +541,8 @@ static void _s_set_identity (t_zmq *x) {
 /**
  * error translator
  */
-void _zmq_error(int errno) {
-   error(zmq_strerror(errno));
+void _zmq_error(int err) {
+   post("[!] %s",zmq_strerror(err));
    /*
    switch(errno) {
       case EINVAL:

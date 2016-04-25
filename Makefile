@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-Wall -I../../src/ -O6 -funroll-loops -fomit-frame-pointer -rdynamic -shared -fPIC
+CFLAGS=-Wall -Wextra -Werror -Wno-unused-parameter -I../../src/ -O6 -funroll-loops -fomit-frame-pointer -rdynamic -shared -fPIC
 LIBS=-lzmq -lc
 
 zmq.pd_linux:
