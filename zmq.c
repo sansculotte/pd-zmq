@@ -54,24 +54,24 @@ typedef struct _zmq {
    t_sstate  socket_state;
 } t_zmq;
 
-void _zmq_about(void);
-void _zmq_version(void);
-void _zmq_create_socket(t_zmq *x, t_symbol *s);
-void _zmq_error(int err);
-void _zmq_msg_tick(t_zmq *x);
-void _zmq_close(t_zmq *x);
-void _zmq_start_receiver(t_zmq *x);
-void _zmq_stop_receiver(t_zmq *x);
-void _zmq_receive(t_zmq *x);
-void _zmq_send(t_zmq *x, t_symbol *s, int argc, t_atom* argv);
+static void _zmq_about(void);
+static void _zmq_version(void);
+static void _zmq_create_socket(t_zmq *x, t_symbol *s);
+static void _zmq_error(int err);
+static void _zmq_msg_tick(t_zmq *x);
+static void _zmq_close(t_zmq *x);
+static void _zmq_start_receiver(t_zmq *x);
+static void _zmq_stop_receiver(t_zmq *x);
+static void _zmq_receive(t_zmq *x);
+static void _zmq_send(t_zmq *x, t_symbol *s, int argc, t_atom* argv);
 static void _s_set_identity (t_zmq *x);
-char _can_send(t_zmq *x);
-char _can_receive(t_zmq *x);
+static char _can_send(t_zmq *x);
+static char _can_receive(t_zmq *x);
 
 /**
  * constructor
  */
-void* zmq_new(void)
+static void* zmq_new(void)
 {
    t_zmq *x = (t_zmq *)pd_new(zmq_class);
 
@@ -99,7 +99,7 @@ void* zmq_new(void)
 /**
  * destructor
  */
-void zmq_destroy(t_zmq *x) {
+static void zmq_destroy(t_zmq *x) {
    clock_free(x->x_clock);
    _zmq_stop_receiver(x);
    _zmq_close(x);
@@ -117,7 +117,7 @@ void zmq_destroy(t_zmq *x) {
  * ZMQ methods
  * http://api.zeromq.org
  */
-void _zmq_about(void)
+static void _zmq_about(void)
 {
    post("ØMQ external https://github.com/sansculotte/pd-zmq\nhttp://api.zeromq.org");
 }
@@ -125,7 +125,7 @@ void _zmq_about(void)
 /**
  * get ZMQ library version
  */
-void _zmq_version(void) {
+static void _zmq_version(void) {
    int major, minor, patch;
    char verstr[64];
    zmq_version (&major, &minor, &patch);
@@ -137,7 +137,7 @@ void _zmq_version(void) {
  * must match socket type
  * see: http://api.zeromq.org/3-2:zmq-socket
  */
-void _zmq_create_socket(t_zmq *x, t_symbol *s) {
+static void _zmq_create_socket(t_zmq *x, t_symbol *s) {
    // close any existing socket
    if(x->zmq_socket) {
        post("closing socket before openeing a new one");
@@ -177,7 +177,7 @@ void _zmq_create_socket(t_zmq *x, t_symbol *s) {
 /**
  * start/stop the receiver loop
  */
-void _zmq_start_receiver(t_zmq *x) {
+static void _zmq_start_receiver(t_zmq *x) {
     // do nothing when alread running
    if( x->run_receiver == 1) {
        return;
@@ -202,7 +202,7 @@ void _zmq_start_receiver(t_zmq *x) {
        _zmq_msg_tick(x);
    }
 }
-void _zmq_stop_receiver(t_zmq *x) {
+static void _zmq_stop_receiver(t_zmq *x) {
    x->run_receiver = 0;
 }
 
@@ -221,7 +221,7 @@ void _zmq_msg_tick(t_zmq *x) {
  * which will be received as bang
  * can be used for signalling/heartbeat
 */
-void zmq_bang(t_zmq *x) {
+static void zmq_bang(t_zmq *x) {
    if ( ! _can_send(x)) {
        return;
    }
@@ -241,7 +241,7 @@ void zmq_bang(t_zmq *x) {
  * endpoint is a string consisting of <transport>://<address>
  * see: http://api.zeromq.org/3-2:zmq-bind
  */
-void _zmq_bind(t_zmq *x, t_symbol *s) {
+static void _zmq_bind(t_zmq *x, t_symbol *s) {
    if(! x->zmq_socket) {
       error("create a socket first");
       return;
@@ -260,7 +260,7 @@ void _zmq_bind(t_zmq *x, t_symbol *s) {
 /**
  * unbind a socket from the specified endpoint
  */
-void _zmq_unbind(t_zmq *x, t_symbol *s) {
+static void _zmq_unbind(t_zmq *x, t_symbol *s) {
    if(! x->zmq_socket) {
       error("no socket");
       return;
@@ -280,7 +280,7 @@ void _zmq_unbind(t_zmq *x, t_symbol *s) {
 /**
  * create an outgoing connection, args are same as for bind
  */
-void _zmq_connect(t_zmq *x, t_symbol *s) {
+static void _zmq_connect(t_zmq *x, t_symbol *s) {
    if(! x->zmq_socket) {
       error("create socket first");
       return;
@@ -299,7 +299,7 @@ void _zmq_connect(t_zmq *x, t_symbol *s) {
 /**
  * disconnect from specified endpoint
  */
-void _zmq_disconnect(t_zmq *x, t_symbol *s) {
+static void _zmq_disconnect(t_zmq *x, t_symbol *s) {
    if(! x->zmq_socket) {
       error("no socket");
       return;
@@ -319,7 +319,7 @@ void _zmq_disconnect(t_zmq *x, t_symbol *s) {
 /**
  * close socket
  */
-void _zmq_close(t_zmq *x) {
+static void _zmq_close(t_zmq *x) {
    _zmq_stop_receiver(x);
    int r;
    if(x->zmq_socket) {
@@ -340,7 +340,7 @@ void _zmq_close(t_zmq *x) {
 /**
  * send a message
  */
-void _zmq_send(t_zmq *x, t_symbol *s, int argc, t_atom* argv) {
+static void _zmq_send(t_zmq *x, t_symbol *s, int argc, t_atom* argv) {
 
    if ( ! x->zmq_socket) {
       post("[!] create and connect socket before sending");
@@ -386,7 +386,7 @@ void _zmq_send(t_zmq *x, t_symbol *s, int argc, t_atom* argv) {
 /**
  * fetch a message
  */
-void _zmq_receive(t_zmq *x) {
+static void _zmq_receive(t_zmq *x) {
 
    if ( ! _can_receive(x)) {
       return;
@@ -448,12 +448,12 @@ void _zmq_receive(t_zmq *x) {
 /**
  * subscribe and unsubscribe for pub/sub pattern
  */
-void _zmq_subscribe(t_zmq *x, t_symbol *s) {
+static void _zmq_subscribe(t_zmq *x, t_symbol *s) {
    zmq_setsockopt(x->zmq_socket, ZMQ_SUBSCRIBE, s->s_name, strlen(s->s_name));
    post("subscribe to %s", s->s_name);
    _zmq_start_receiver(x);
 }
-void _zmq_unsubscribe(t_zmq *x, t_symbol *s) {
+static void _zmq_unsubscribe(t_zmq *x, t_symbol *s) {
    zmq_setsockopt(x->zmq_socket, ZMQ_UNSUBSCRIBE, s->s_name, strlen(s->s_name));
    post("unsubscribe from %s", s->s_name);
 }
@@ -489,7 +489,7 @@ void zmq_setup(void)
 /**
  * check if the socket allows sending
  */
-char _can_send(t_zmq *x) {
+static char _can_send(t_zmq *x) {
    switch (x->socket_type) {
       case ZMQ_REP:
       case ZMQ_REQ:
@@ -509,7 +509,7 @@ char _can_send(t_zmq *x) {
 /**
  * check if the socket allows receiving
  */
-char _can_receive(t_zmq *x) {
+static char _can_receive(t_zmq *x) {
    switch (x->socket_type) {
       case ZMQ_REP:
       case ZMQ_REQ:
@@ -541,7 +541,7 @@ static void _s_set_identity (t_zmq *x) {
 /**
  * error translator
  */
-void _zmq_error(int err) {
+static void _zmq_error(int err) {
    post("[!] %s",zmq_strerror(err));
    /*
    switch(errno) {
