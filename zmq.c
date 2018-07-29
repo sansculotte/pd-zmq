@@ -400,7 +400,7 @@ void _zmq_receive(t_zmq *x) {
    r=zmq_recv (x->zmq_socket, buf, MAXPDSTRING, ZMQ_DONTWAIT);
    if(r != -1) {
        if (r > MAXPDSTRING) r = MAXPDSTRING; // brutally cut off excessive bytes
-       buf[r] = 0; // terminate string
+       buf[r - 1] = 0; // terminate string
        if(r > 0) {
           b = binbuf_new();
           binbuf_text(b, buf, r);
