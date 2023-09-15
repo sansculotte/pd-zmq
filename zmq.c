@@ -70,8 +70,9 @@ static char _can_receive(t_zmq *x);
 
 /**
  * constructor
+ * setup zmq context
  */
-static void* zmq_new(void)
+static void* zmq_new(t_symbol *s, int argc, t_atom *argv)
 {
    t_zmq *x = (t_zmq *)pd_new(zmq_class);
 
@@ -128,7 +129,7 @@ static void _zmq_about(void)
 static void _zmq_version(void) {
    int major, minor, patch;
    char verstr[64];
-   zmq_version (&major, &minor, &patch);
+   zmq_version(&major, &minor, &patch);
    sprintf(verstr, "ØMQ version: %d.%d.%d", major, minor, patch);
    post(verstr);
 }
@@ -138,7 +139,10 @@ static void _zmq_version(void) {
  * see: http://api.zeromq.org/3-2:zmq-socket
  */
 static void _zmq_create_socket(t_zmq *x, t_symbol *s) {
-   // close any existing socket
+   /* close any existing socket
+    * one socket per context is not a library constraint,
+    * but makes it easier for us to manage complexity
+    */
    if(x->zmq_socket) {
        post("closing socket before openeing a new one");
        _zmq_close(x);
@@ -163,7 +167,7 @@ static void _zmq_create_socket(t_zmq *x, t_symbol *s) {
       type = ZMQ_SUB;
    }
    else {
-      error("invalid socket type or not yet implemented");
+      pd_error(x, "invalid socket type or not yet implemented");
       return;
    }
 
@@ -179,13 +183,13 @@ static void _zmq_create_socket(t_zmq *x, t_symbol *s) {
  */
 static void _zmq_start_receiver(t_zmq *x) {
     // do nothing when alread running
-   if( x->run_receiver == 1) {
+   if(x->run_receiver == 1) {
        return;
    }
    // check if the socket exists. there's no way in the api
    // to test if the socket is bound/connected
    if( ! x->zmq_socket) {
-      error("create a socket first");
+      pd_error(x, "create a socket first");
       return;
    }
    //int type = x->socket_type;
@@ -226,10 +230,10 @@ static void zmq_bang(t_zmq *x) {
        return;
    }
    if ( ! x->zmq_socket) {
-      error("create and connect socket before sending anything");
+      pd_error(x, "create and connect socket before sending anything");
       return;
    }
-   int r=zmq_send (x->zmq_socket, "", 0, ZMQ_DONTWAIT);
+   int r = zmq_send(x->zmq_socket, "", 0, ZMQ_DONTWAIT);
    if(r == -1) {
       _zmq_error(zmq_errno());
       return;
@@ -242,16 +246,16 @@ static void zmq_bang(t_zmq *x) {
  * see: http://api.zeromq.org/3-2:zmq-bind
  */
 static void _zmq_bind(t_zmq *x, t_symbol *s) {
-   if(! x->zmq_socket) {
-      error("create a socket first");
+   if( ! x->zmq_socket) {
+      pd_error(x, "create a socket first");
       return;
    }
    if(x->socket_state != NONE) {
-      error("socket already in use");
+      pd_error(x, "socket already in use");
       return;
    }
    int r = zmq_bind(x->zmq_socket, s->s_name);
-   if(r==0) {
+   if(r == 0) {
       x->socket_state = BOUND;
       post("socket bound");
    }
@@ -262,15 +266,15 @@ static void _zmq_bind(t_zmq *x, t_symbol *s) {
  */
 static void _zmq_unbind(t_zmq *x, t_symbol *s) {
    if(! x->zmq_socket) {
-      error("no socket");
+      pd_error(x, "no socket");
       return;
    }
    if(x->socket_state != BOUND) {
-      error("socket not bound");
+      pd_error(x, "socket not bound");
       return;
    }
    int r = zmq_unbind(x->zmq_socket, s->s_name);
-   if(r==0) {
+   if(r == 0) {
       x->socket_state = NONE;
       post("socket unbound");
    }
@@ -282,15 +286,15 @@ static void _zmq_unbind(t_zmq *x, t_symbol *s) {
  */
 static void _zmq_connect(t_zmq *x, t_symbol *s) {
    if(! x->zmq_socket) {
-      error("create socket first");
+      pd_error(x, "create socket first");
       return;
    }
    if(x->socket_state != NONE) {
-      error("socket already in use");
+      pd_error(x, "socket already in use");
       return;
    }
    int r = zmq_connect(x->zmq_socket, s->s_name);
-   if(r==0) {
+   if(r == 0) {
       x->socket_state = CONNECTED;
       post("socket connected");
    }
@@ -301,15 +305,15 @@ static void _zmq_connect(t_zmq *x, t_symbol *s) {
  */
 static void _zmq_disconnect(t_zmq *x, t_symbol *s) {
    if(! x->zmq_socket) {
-      error("no socket");
+      pd_error(x, "no socket");
       return;
    }
    if(x->socket_state != CONNECTED) {
-      error("socket not connected");
+      pd_error(x, "socket not connected");
       return;
    }
    int r = zmq_disconnect(x->zmq_socket, s->s_name);
-   if(r==0) {
+   if(r == 0) {
       x->socket_state = NONE;
       post("socket discconnected");
    }
@@ -327,7 +331,7 @@ static void _zmq_close(t_zmq *x) {
       zmq_setsockopt(x->zmq_socket, ZMQ_LINGER, &linger, sizeof(linger));
       r=zmq_close(x->zmq_socket);
 //      clock_unset(x->x_clock);
-      if(r==0) {
+      if(r == 0) {
          post("socket closed");
          //free(x->zmq_socket);
          x->zmq_socket = NULL;
@@ -365,7 +369,7 @@ static void _zmq_send(t_zmq *x, t_symbol *s, int argc, t_atom* argv) {
    //post("msg length %i", length);
 
    //s_send(x->zmq_socket, buf);
-   r=zmq_send (x->zmq_socket, buf, strlen(buf), 0);
+   r=zmq_send(x->zmq_socket, buf, strlen(buf), 0);
 
    t_freebytes(buf, length);
    binbuf_free(b);
@@ -376,7 +380,7 @@ static void _zmq_send(t_zmq *x, t_symbol *s, int argc, t_atom* argv) {
    }
 
    // if REQ socket wait for reply
-   if(x->socket_type==ZMQ_REQ) {
+   if(x->socket_type == ZMQ_REQ) {
       _zmq_receive(x);
    }
 
@@ -397,9 +401,12 @@ static void _zmq_receive(t_zmq *x) {
    t_binbuf *b;
    int msg;
 
-   r=zmq_recv (x->zmq_socket, buf, MAXPDSTRING, ZMQ_DONTWAIT);
+   r = zmq_recv(x->zmq_socket, buf, MAXPDSTRING, ZMQ_DONTWAIT);
    if(r != -1) {
-       if (r > MAXPDSTRING) r = MAXPDSTRING; // brutally cut off excessive bytes
+       if (r > MAXPDSTRING) {
+           r = MAXPDSTRING; // brutally cut off excessive bytes
+           pd_error(x, "zmq_receive: received message too big for buffer. truncated.");
+       }
        buf[r - 1] = 0; // terminate string
        if(r > 0) {
           b = binbuf_new();
@@ -429,8 +436,12 @@ static void _zmq_receive(t_zmq *x) {
                       else outlet_float(x->s_out, at[msg].a_w.w_float);
                   }
                   else if (at[msg].a_type == A_SYMBOL)
-                      outlet_anything(x->s_out, at[msg].a_w.w_symbol,
-                              emsg-msg-1, at + msg + 1);
+                      outlet_anything(
+                          x->s_out,
+                          at[msg].a_w.w_symbol,
+                          emsg-msg-1,
+                          at + msg + 1
+                      );
               }
           nodice:
               msg = emsg + 1;
@@ -439,7 +450,7 @@ static void _zmq_receive(t_zmq *x) {
        } else {
           outlet_bang(x->s_out);
        }
-       if((err=zmq_errno())!=EAGAIN) {
+       if((err=zmq_errno()) != EAGAIN) {
           _zmq_error(err);
        }
    }
