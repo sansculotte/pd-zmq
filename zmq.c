@@ -72,7 +72,7 @@ static char _can_receive(t_zmq *x);
  * constructor
  * setup zmq context
  */
-static void* zmq_new(t_symbol *s, int argc, t_atom *argv)
+static void *zmq_new(t_symbol *s, int argc, t_atom *argv)
 {
    t_zmq *x = (t_zmq *)pd_new(zmq_class);
 
@@ -475,8 +475,8 @@ static void _zmq_unsubscribe(t_zmq *x, t_symbol *s) {
 void zmq_setup(void)
 {
    zmq_class = class_new(gensym("zmq"),
-         (t_newmethod)zmq_new,
-         (t_method)zmq_destroy,
+         (t_newmethod) zmq_new,
+         (t_method) zmq_destroy,
          sizeof(t_zmq),
          CLASS_DEFAULT, A_GIMME, 0);
 
