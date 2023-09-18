@@ -9,7 +9,7 @@ Puredata is a visual multimedia programming environment, see:
 http://puredata.info
 
 
-version 0.0.3
+version 0.0.4
 At the moment functionality is basic, but the thing is generally usable.
 zeromq is a low-level, powerfull library so it is easy to shoot your-
 self in the foot. check out the [FAQs](http://zeromq.org/area:faq) for
